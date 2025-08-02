@@ -1,0 +1,62 @@
+# file_process
+fileProcessingMode: batch  # singleFile, batch, movieInDir, singleFileMovie, batchMovie
+dataFileName: raw_image_dir
+saveDirName: output_dir
+inclusionString: ''
+exclusionString: ''
+recursive: 0  # 0, 1
+saveSpotsImage: True
+
+# PreprocessSettings
+scale: True
+scaleUpper: 99.99
+scaleLower: 10
+scaleMaxRatio: 0.5
+
+# FeatureExtractSettings
+featureExtract: LoG # 'none', 'DoG', 'LoG', 'DoGAndLoG', 'tophat'
+enhance: True
+filterLo: 1.5
+filterHi: 2
+saveSmoothed: False
+saveCandidates: True
+multiChannelCandidates: False
+
+# detectionSettings
+maxSpots: 1000000
+minDistBetweenSpots: 3
+threshUnits: legacySD # absolute, SD, legacySD
+threshLevel: 
+    cy3: 5
+    cy5: 5
+    fam: 5
+    txred: 5
+
+
+# fittingSettings
+fittedRegionSize: 2
+fitMethod: 3DMaskFull # 3DMaskFull, 2DMaskOnLocalMaxProj, 3DGaussianFit, 2DGaussianMask, 2DGaussianFit
+bgCorrectionMode: localPlane # localPlane, localMedian, globalMedian
+psfSigma: 
+    - 1
+    - 2.5
+
+# outputImg
+setPsfInteractively: 0
+setThreshInteractively: 0
+outputSpotsImage: 1
+autoSpotSize: 1
+spotSize: 1
+autoSpotIntensity: 1
+spotIntensity: 1000
+
+# advanced 
+verbose: True
+useDefaults: 1
+tol: 0.01
+bgRegionThickness: 1
+psfType: integratedGaussian
+maxIterations: 20
+
+# internal use only
+numdim: 3

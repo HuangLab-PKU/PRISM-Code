@@ -1,0 +1,14 @@
+# 忽略编辑器配置
+.vscode/
+.idea/
+*.swp
+*.swo
+# pycache
+__pycache__/
+*.pyc
+
+# test file
+/test/
+
+# local use files
+/local/
