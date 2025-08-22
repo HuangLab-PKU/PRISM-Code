@@ -20,13 +20,13 @@ plt.rcParams.update({
 })
 
 # 添加PRISM代码路径
-package_path = r'path_to_PRISM_code_src'
+package_path = r'C:\Users\Mingchuan\Huanglab\spatial\PRISM\code\src'
 if package_path not in sys.path: sys.path.append(package_path)
 
 # workdir 
-BASE_DIR = Path(r'path_to_processed_dataset')
-RUN_ID = 'example_data'
-src_dir = BASE_DIR / f'{RUN_ID}'
+BASE_DIR = Path(r'G:\spatial_data\processed')
+RUN_ID = '20250720_FFPE_HSY_T_5um'
+src_dir = BASE_DIR / RUN_ID
 read_dir = src_dir / 'readout'
 figure_dir = read_dir / 'figures'
 read_dir.mkdir(exist_ok=True)
@@ -104,7 +104,7 @@ plt.close()
 
 
 # deduplicate
-from lib.data_preprocess import deduplicate_df
+from gene_calling.data_preprocess import deduplicate_df
 intensity = intensity[(intensity['sum']>thre_min)&(intensity['sum']<thre_max)]
 intensity = deduplicate_df(intensity, columns=['Y','X'], sort_by='sum', threshold=2)
 

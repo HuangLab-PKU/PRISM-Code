@@ -17,8 +17,8 @@ from pprint import pprint
 
 # constants
 CHANNELS = ['cy5', 'TxRed', 'cy3', 'FAM']
-BASE_DIR = Path('path_to_processed_dataset')
-RUN_ID = 'example_data'
+BASE_DIR = Path('G:\spatial_data\processed')
+RUN_ID = '20250717_FFPE_OSCC'
 PRISM_PANEL = 'PRISM30'
 src_dir = BASE_DIR / RUN_ID
 stc_dir = src_dir / 'stitched'
