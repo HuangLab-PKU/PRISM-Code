@@ -1,0 +1,25 @@
+# Gene Calling Main Configuration File
+# This file loads and combines all gene calling configuration modules
+
+# Configuration modules to load
+config_modules:
+  - gene_calling_base.yaml
+  - gene_calling_gmm.yaml
+
+# Override specific parameters if needed
+overrides:
+  # Example: Override classification method
+  # classification:
+  #   method: 'kmeans'  # Future method
+  
+  # Example: Override GMM parameters
+  # classification:
+  #   gmm:
+  #     num_per_layer: 20
+  #     use_layers: false
+  
+  # Example: Override preprocessing parameters
+  # preprocessing:
+  #   fret_adjustments:
+  #     G_ye_factor: 0.8
+  #     B_g_factor: 0.15

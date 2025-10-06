@@ -1,0 +1,48 @@
+# GMM Method Specific Configuration
+# Parameters specific to Gaussian Mixture Model gene calling method
+
+# GMM-specific preprocessing parameters
+preprocessing:
+  # Gaussian noise for boundary points
+  gaussian_noise_scale: 0.01
+  
+  # Intensity thresholds (for filtering if needed)
+  thre_min: 200          # Minimum intensity threshold
+  thre_max: 10000        # Maximum intensity threshold
+
+# GMM classification parameters
+classification:
+  method: "gmm"
+  
+  gmm:
+    # GMM model parameters
+    covariance_type: "diag"  # Options: full, tied, diag, spherical
+    use_layers: false         # Disable layer-based when using 4D ratios only
+    use_4d_ratios_only: true  # Enable single cluster GMM on 4D ratios
+    include_special_in_gmm: false  # Do NOT include special class; output as label total+1
+    max_iter: 100           # Maximum iterations for EM algorithm
+    tol: 1e-3               # Convergence tolerance
+    random_state: 42        # Random seed for reproducibility
+    
+    # Layer configuration (parameters inherited from base config)
+    layer_config:
+      enabled: true
+      # num_per_layer and g_layer_num will be inherited from base config
+    
+    # Model selection
+    model_selection:
+      enabled: false        # Enable automatic model selection
+      n_components_range: [5, 30]  # Range of components to test
+      cv_folds: 5           # Cross-validation folds
+      selection_criterion: "aic"  # Options: aic, bic, cv
+    
+    # Initialization
+    initialization:
+      method: "kmeans"      # Options: kmeans, random, k-means++
+      n_init: 10           # Number of initializations
+    
+    # Convergence
+    convergence:
+      max_iter: 100
+      tol: 1e-3
+      verbose: false
