@@ -1,0 +1,91 @@
+# Gene Calling Base Configuration
+# Common parameters shared across all gene calling methods
+
+# PRISM panel configuration
+prism_panel:
+  type: "PRISM30"  # Options: PRISM30, PRISM31, PRISM45, PRISM46, PRISM63, PRISM64
+  
+  # Channel grading parameters (for kmeans initialization)
+  channel_grading:
+    color_channels: 5      # Grading levels for color channels (ch1, ch2, ch4)
+    layer_channel: 2       # Grading levels for layer channel (ch3)
+  
+  # Panel-specific parameters (user-specified)
+  num_per_layer: 15        # Number of components per layer
+  g_layer_num: 2           # Number of G layers
+  total_components: 30     # Total number of expected components
+
+# GMM centroid constraint (applies post-fit)
+centroid_max_movement: 0.15   # Max allowed movement from initial means (L2 norm)
+constrained_fit_rounds: 1      # Rounds to enforce and optionally refit (1 = single enforcement)
+
+# Data input/output configuration
+data:
+  # Input data format (from spot detection)
+  input_format:
+    intensity_columns: ["ch1", "ch2", "ch3", "ch4"]  # Unified channel names
+    coordinate_columns: ["Y", "X"]
+  
+  # Output configuration
+  output:
+    save_predictions: true
+    save_model: true
+    save_evaluation: true
+    save_visualizations: true
+
+# Feature extraction configuration
+feature_extraction:
+  # Types of features to extract
+  feature_types:
+    - "ratios"           # Channel ratios (ch1/A, ch2/A, ch3/A, ch4/A)
+    - "projections"      # 2D projections (CD_1, CD_2)
+    - "intensity_features"  # Intensity-based features
+    - "statistical_features"  # Statistical features
+  
+  # Include ch3 (layering channel) in ratio features
+  include_layering_channel: true
+
+# Evaluation and visualization
+evaluation:
+  # Visualization settings
+  visualization:
+    figure_size: [10, 8]
+    dpi: 300
+    save_format: "png"
+    color_scheme: "tab20"
+  
+  # Evaluation metrics
+  metrics:
+    - "silhouette_score"
+    - "calinski_harabasz_score"
+    - "davies_bouldin_score"
+  
+  # Report generation
+  generate_report: true
+  report_format: "markdown"
+
+# Manual threshold adjustment
+manual_threshold_adjustment:
+  enabled: false  # Enable manual threshold adjustment
+  mask_dir: ""    # Directory containing mask images
+  plot_columns: ["color_dim_1", "color_dim_2"]
+  xrange: [-0.8, 0.8]
+  yrange: [-0.6, 0.8]
+
+# Quantitative evaluation
+quantitative_evaluation:
+  enabled: false  # Enable quantitative evaluation
+  channels: ["ch1/A", "ch2/A", "ch3/A", "ch4/A"]
+  p_thre_list: [0.1, 0.5]
+
+# Data overview
+data_overview:
+  enabled: false  # Enable data overview generation
+  sample_size: 10000
+  bins: 50
+
+# Logging configuration
+logging:
+  level: "INFO"  # Options: DEBUG, INFO, WARNING, ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
