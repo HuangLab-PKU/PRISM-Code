@@ -1,0 +1,43 @@
+###############################################################################
+# PRISM code submodule dependencies (pinned to current local PRISM env versions)
+#
+# This list consolidates packages used by code in `src/` and notebooks under
+# `notebooks/`. Versions are pinned for full reproducibility. If you update the
+# environment, re‑generate pins to keep in sync. Optional / heavyweight groups
+# are separated by comments so you can selectively install.
+###############################################################################
+
+# Core scientific stack
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.0
+scikit-learn==1.4.2
+
+# Imaging & IO
+opencv-python==4.9.0.80
+scikit-image==0.22.0
+tifffile==2023.8.12
+Pillow==10.3.0
+SimpleITK==2.3.1
+
+# Deep learning / StarDist (TensorFlow backend assumed)
+tensorflow==2.16.1
+keras==3.3.3
+csbdeep==0.8.1
+stardist==0.9.1
+
+# Visualization
+matplotlib==3.10.3
+seaborn==0.13.2
+
+# Utilities
+tqdm==4.67.1
+PyYAML==6.0.1
+pathos==0.3.2
+PySimpleGUI==5.0.4
+cmap==0.2.2
+
+# Notes:
+# 1. MATLAB Engine (matlabengine) is used in some workflows but must be installed via MATLAB's setup; not on PyPI.
+# 2. If GPU acceleration is needed, install the appropriate tensorflow (e.g., pip install tensorflow[and-cuda]).
+# 3. For development, you may add linters/formatters (black, flake8) in a separate dev requirements file.
