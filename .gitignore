@@ -27,12 +27,14 @@ venv/
 
 # 忽略编辑器配置
 .vscode/
+.cursor/
 .idea/
 *.swp
 *.swo
+.cursor*
 
 # test file
-/test/
+test/
 
 # local use files
-/local/
+local/

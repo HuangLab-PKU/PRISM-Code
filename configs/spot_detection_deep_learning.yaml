@@ -1,0 +1,24 @@
+# Spot Detection Deep Learning Method Configuration
+# Parameters for deep learning-based spot detection using StarDist
+
+# Detection Method Configuration
+detection_method:
+  type: 'deep_learning'
+  
+  # Deep learning method parameters
+  deep_learning:
+    model_path: ''
+    model_name: ''
+    prob_thresh: 0.5
+    nms_thresh: 0.3
+    roi_size: 15
+
+# Image Processing Parameters (minimal for deep learning)
+image_processing:
+  # Basic preprocessing
+  normalize: true
+  normalize_percentiles: [1, 99.8]
+  
+  # Optional preprocessing
+  gaussian_sigma: null  # Optional Gaussian blur
+  median_filter_size: null  # Optional median filtering
