@@ -27,13 +27,21 @@ venv/
 
 # 忽略编辑器配置
 .vscode/
+.cursor/
 .idea/
 *.swp
 *.swo
 .cursor*
 
 # test file
+<<<<<<< HEAD
 *test/
 
 # local use files
 *local/
+=======
+test/
+
+# local use files
+local/
+>>>>>>> e21dc128d40b60f8e2b268c94220bfb88dec278f
