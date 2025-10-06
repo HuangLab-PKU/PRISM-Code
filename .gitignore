@@ -30,9 +30,10 @@ venv/
 .idea/
 *.swp
 *.swo
+.cursor*
 
 # test file
-/test/
+*test/
 
 # local use files
-/local/
+*local/
