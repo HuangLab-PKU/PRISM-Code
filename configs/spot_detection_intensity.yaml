@@ -1,0 +1,39 @@
+# Spot Detection Intensity Extraction Configuration
+# Parameters for different intensity extraction methods
+
+# Intensity Extraction Configuration
+intensity_extraction:
+  method: 'direct'  # Options: 'direct', 'gaussian', 'mask', 'integrated', 'adaptive', 'multiscale'
+  preset: null  # If specified, overrides method
+  
+  # Method-specific parameters
+  direct:
+    kernel_size: 5
+    dilation_iterations: 1
+  
+  gaussian:
+    roi_size: 15
+    fit_failed_fallback: true
+    max_iterations: 1000
+    tolerance: 1e-6
+  
+  mask:
+    mask_radius: 3
+    background_radius: 8
+    background_method: 'mean'  # Options: 'mean', 'median', 'min'
+    exclude_overlap: true
+  
+  integrated:
+    roi_size: 15
+    integration_method: 'gaussian'  # Options: 'gaussian', 'trapezoidal'
+  
+  adaptive:
+    gaussian_roi_size: 15
+    mask_radius: 3
+    background_radius: 8
+    snr_threshold: 3.0
+    fallback_method: 'direct'
+  
+  multiscale:
+    scales: [1, 2, 3, 5]
+    scale_weights: [0.1, 0.3, 0.4, 0.2]  # Weights for combining scales

@@ -1,0 +1,67 @@
+# Spot Detection Base Configuration
+# Common parameters shared across all spot detection workflows
+
+# Base configuration
+base:
+  base_dir: 'G:/spatial_data/processed'
+  prism_panel: 'PRISM30'  # Options: PRISM30, PRISM31, PRISM45, PRISM46, PRISM63, PRISM64
+  
+  # System configuration
+  max_memory: 32  # GB
+  use_tiling: true
+  use_memmap: true  # Enable memory mapping for large images
+  memmap_threshold_gb: 2.0  # Use memmap for images larger than this size
+
+# Unified Channel Configuration
+# Channels are represented as ch1, ch2, ch3, ch4... (wavelength from short to long)
+channels:
+  # Unified channel names (ch1, ch2, ch3, ch4...)
+  unified_channels: ['ch1', 'ch2', 'ch3', 'ch4']
+  
+  # Direct file mapping (unified channel name to file name)
+  file_mapping:
+    ch1: 'cyc_1_cy5.tif'    # Shortest wavelength (670nm) - Cy5
+    ch2: 'cyc_1_TxRed.tif'  # Second shortest (615nm) - Texas Red
+    ch3: 'cyc_1_cy3.tif'    # Third shortest (550nm) - Cy3
+    ch4: 'cyc_1_FAM.tif'    # Longest wavelength (520nm) - FAM
+  
+  # Wavelength information for each channel
+  wavelength_info:
+    ch1:
+      wavelength_nm: 670
+      description: 'Cy5 - Far Red'
+      original_name: 'cy5'
+    ch2:
+      wavelength_nm: 615
+      description: 'Texas Red - Red'
+      original_name: 'TxRed'
+    ch3:
+      wavelength_nm: 550
+      description: 'Cy3 - Green'
+      original_name: 'cy3'
+    ch4:
+      wavelength_nm: 520
+      description: 'FAM - Green'
+      original_name: 'FAM'
+  
+  # Channel transformation matrix (from raw to corrected readings)
+  # Format: [ch1_corrected, ch2_corrected, ch3_corrected, ch4_corrected] = matrix * [ch1_raw, ch2_raw, ch3_raw, ch4_raw]
+  # Matrix rows: [ch1, ch2, ch3, ch4] correspond to output channels
+  # Matrix columns: [ch1, ch2, ch3, ch4] correspond to input channels
+  transformation_matrix:
+    # Row 1: ch1_corrected = ch1_raw * 1.0 + ch2_raw * 0 + ch3_raw * 0 + ch4_raw * 0
+    ch1: [1.0, 0.0, 0.0, 0.0]
+    # Row 2: ch2_corrected = ch1_raw * 0 + ch2_raw * 1.0 + ch3_raw * 0 + ch4_raw * 0  
+    ch2: [0.0, 1.0, 0.0, 0.0]
+    # Row 3: ch3_corrected = ch1_raw * 0 + ch2_raw * 0 + ch3_raw * 2.5 + ch4_raw * 0
+    ch3: [0.0, 0.0, 2.5, 0.0]
+    # Row 4: ch4_corrected = ch1_raw * 0 + ch2_raw * 0 + ch3_raw * (-0.25) + ch4_raw * 0.75
+    ch4: [0.0, 0.0, -0.25, 0.75]
+
+# Batch Processing Configuration
+batch:
+  overlap: 500  # pixels
+  max_volume_factor: 8  # Factor for calculating max_volume
+
+# Note: Threshold filtering (sum_threshold, g_abs_threshold, etc.) 
+# has been moved to the gene calling step
