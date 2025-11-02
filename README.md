@@ -49,6 +49,7 @@ graph TD
     end
 ```
 
+**Note on Data Acquisition:** During image acquisition, certain fields of view may display artifacts or quality issues, including: **bubbles, overexposed regions, debris, tissue detachment, out-of-focus images, or data loss**. It is recommended to identify and exclude these problematic areas to ensure reliable downstream image processing and analysis.
 ## Quick Start
 
 ### 1. Clone Repository
