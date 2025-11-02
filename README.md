@@ -3,6 +3,7 @@
 PRISM (**P**rofiling of **R**NA **I**n-situ through **S**ingle-round i**M**aging) is an innovative method that employs a multi-channel color barcoding to distinguish a wide array of RNA transcripts in large-scale tissues with sub-micron resolution through a single staining and imaging cycle, making it fast and free of problems associated with fluidics-dependency and inter-round spot shift.
 
 For more information, please read the article: 
+- [Nature Biotechnology 2025.10.30](https://doi.org/10.1038/s41587-025-02883-7)
 - [BioArxiv 2024.6.29](https://doi.org/10.1101/2024.06.29.601330).
 
 This repository provides a comprehensive computational pipeline for PRISM data analysis, including image processing, spot detection, gene calling, and cell segmentation. The codebase supports both 2D and 3D spatial transcriptomics analysis with modular, configurable components that can be adapted to different experimental setups and tissue types.
