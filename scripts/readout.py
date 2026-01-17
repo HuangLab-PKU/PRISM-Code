@@ -16,7 +16,6 @@ Output files:
 """
 
 import os
-import sys
 import shutil
 from pathlib import Path
 import numpy as np
@@ -27,14 +26,11 @@ import tifffile
 import logging
 from concurrent.futures import ProcessPoolExecutor
 
-# Add PRISM code path
-package_path = 'path_to_PRISM_code_src'
-if package_path not in sys.path:
-    sys.path.append(package_path)
-
-from readout.spot_detection import get_spot_coordinates
-from readout.intensity_readout import read_intensity_tophat
-from readout.deduplicate import deduplicate_dataframe
+# Import from installed PRISM package
+# After running: pip install -e . (from code/ directory)
+from src.readout.spot_detection import get_spot_coordinates
+from src.readout.intensity_readout import read_intensity_tophat
+from src.readout.deduplicate import deduplicate_dataframe
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

@@ -15,7 +15,6 @@ The script uses the existing gene_calling pipeline from src/gene_calling.
 """
 
 import os
-import sys
 import shutil
 from pathlib import Path
 import pandas as pd
@@ -23,12 +22,8 @@ import numpy as np
 import yaml
 import logging
 
-# Add PRISM code path
-package_path = 'path_to_PRISM_code_src'
-if package_path not in sys.path:
-    sys.path.append(package_path)
-
-from gene_calling.pipeline import SignalClassificationPipeline
+# Import from installed PRISM package
+from src.gene_calling.pipeline import SignalClassificationPipeline
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

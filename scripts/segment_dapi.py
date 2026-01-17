@@ -3,16 +3,13 @@ Cell Segmentation Runner Script
 Simple interface for cell segmentation using unified segmentation module
 """
 import os
-import sys
 import shutil
 from pathlib import Path
 
-# Add src to path
-package_path = r'path_to_PRISM_code_src'
-if package_path not in sys.path: sys.path.append(package_path)
-
-from cell_segmentation.unified_segmentation import UnifiedSegmentation
-from cell_segmentation.segmentation_config import SegmentationConfig
+# Import from installed PRISM package
+# After running: pip install -e . (from code/ directory)
+from src.cell_segmentation.unified_segmentation import UnifiedSegmentation
+from src.cell_segmentation.segmentation_config import SegmentationConfig
 
 
 def run_segmentation(base_dir: str, run_id: str, cell_image_name: str = 'cyc_1_DAPI.tif',

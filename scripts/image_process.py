@@ -1,5 +1,4 @@
 import os
-import sys
 import shutil
 from pathlib import Path
 
@@ -11,16 +10,13 @@ from skimage.util import img_as_uint
 from skimage.io import imread, imsave
 from scipy.io import loadmat
 
-# 添加PRISM代码路径
-package_path = r'path_to_PRISM_code_src'
-if package_path not in sys.path: sys.path.append(package_path)
-
-from image_process.utils.io_utils import get_tif_list
-from image_process.os_snippets import try_mkdir
-from image_process.fstack import stack_cyc
-from image_process.cidre import cidre_walk
-from image_process.register import register_meta, register_manual
-from image_process.stitch import patch_tiles, template_stitch, stitch_offset, stitch_manual
+# Import from installed PRISM package
+from src.image_process.utils.io_utils import get_tif_list
+from src.image_process.os_snippets import try_mkdir
+from src.image_process.fstack import stack_cyc
+from src.image_process.cidre import cidre_walk
+from src.image_process.register import register_meta, register_manual
+from src.image_process.stitch import patch_tiles, template_stitch, stitch_offset, stitch_manual
 
 
 SRC_DIR = Path('path_to_raw_dataset')
