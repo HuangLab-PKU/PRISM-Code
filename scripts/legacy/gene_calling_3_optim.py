@@ -21,7 +21,11 @@ plt.rcParams.update({
     'figure.dpi': 300,
 })
 
-from ..src.gene_calling.GMM_and_visualization import color_space_visual
+# 添加PRISM代码路径
+package_path = r'path_to_PRISM_code_src'
+if package_path not in sys.path: sys.path.append(package_path)
+
+from gene_calling.GMM_and_visualization import color_space_visual
 
 # workdir 
 BASE_DIR = Path('path_to_processed_dataset')
@@ -64,7 +68,7 @@ intensity_raw = pd.read_csv(read_dir / 'tmp' / 'intensity_raw.csv')
 intensity = pd.read_csv(read_dir / 'intensity_labeled.csv')
 intensity_G = pd.read_csv(read_dir / 'intensity_G.csv')
 
-from ..src.gene_calling.manual_thre import relabel
+from lib.manual_thre import relabel
 print(len(intensity_raw))
 print(len(intensity))
 intensity = relabel(intensity, mask_dir=read_dir/'mask_check', mode='replace', num_per_layer=Q_NUM, xrange=XRANGE, yrange=YRANGE)
@@ -86,7 +90,7 @@ color_space_visual(intensity, G_layer=GLAYER, num_per_layer=Q_NUM, bins=[500, 50
               out_path_dir=figure_dir / 'ColorSpace.png', label=True)
 
 # Quality control
-from ..src.gene_calling.quantitative_evaluation import calculate_cdf, plot_mean_accuracy
+from lib.quantitative_evaluation import calculate_cdf, plot_mean_accuracy
 
 cdf_4d, centroids = calculate_cdf(intensity, st=0, num_per_layer=GLAYER*Q_NUM, channel=['Ye/A', 'B/A', 'R/A', 'G/A'])
 ### evaluation

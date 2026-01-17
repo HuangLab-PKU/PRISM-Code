@@ -1,0 +1,11 @@
+# Auto-generated temporary config for spherical covariance test
+config_modules:
+  - gene_calling_base.yaml
+  - gene_calling_gmm.yaml
+
+overrides:
+  classification:
+    gmm:
+      covariance_type: spherical
+
+

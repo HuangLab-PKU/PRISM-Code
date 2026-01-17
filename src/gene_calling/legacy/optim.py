@@ -21,11 +21,14 @@ plt.rcParams.update({
     'figure.dpi': 300,
 })
 
-from ..src.gene_calling.GMM_and_visualization import color_space_visual
+from lib.GMM_and_visualization import color_space_visual
+
+package_path = r'C:\Users\Mingchuan\Huanglab\PRISM\PRISM_Code\gene_calling'
+if package_path not in sys.path: sys.path.append(package_path)
 
 # workdir 
-BASE_DIR = Path('path_to_processed_dataset')
-RUN_ID = 'example_data'
+BASE_DIR = Path(r'G:\spatial_data\processed')
+RUN_ID = '20250318_ZP_YCXin_PRISM_pro_exp_4_con_2_EtOH_omit_primary_antibody'
 src_dir = BASE_DIR / f'{RUN_ID}_processed'
 read_dir = src_dir / 'readout'
 figure_dir = read_dir / 'figures'
@@ -64,7 +67,7 @@ intensity_raw = pd.read_csv(read_dir / 'tmp' / 'intensity_raw.csv')
 intensity = pd.read_csv(read_dir / 'intensity_labeled.csv')
 intensity_G = pd.read_csv(read_dir / 'intensity_G.csv')
 
-from ..src.gene_calling.manual_thre import relabel
+from lib.manual_thre import relabel
 print(len(intensity_raw))
 print(len(intensity))
 intensity = relabel(intensity, mask_dir=read_dir/'mask_check', mode='replace', num_per_layer=Q_NUM, xrange=XRANGE, yrange=YRANGE)
@@ -86,7 +89,7 @@ color_space_visual(intensity, G_layer=GLAYER, num_per_layer=Q_NUM, bins=[500, 50
               out_path_dir=figure_dir / 'ColorSpace.png', label=True)
 
 # Quality control
-from ..src.gene_calling.quantitative_evaluation import calculate_cdf, plot_mean_accuracy
+from lib.quantitative_evaluation import calculate_cdf, plot_mean_accuracy
 
 cdf_4d, centroids = calculate_cdf(intensity, st=0, num_per_layer=GLAYER*Q_NUM, channel=['Ye/A', 'B/A', 'R/A', 'G/A'])
 ### evaluation

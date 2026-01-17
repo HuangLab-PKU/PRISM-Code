@@ -19,12 +19,13 @@ plt.rcParams.update({
     'figure.dpi': 300,
 })
 
-package_path = 'path_to_PRISM_code_src'
+# 添加PRISM代码路径
+package_path = r'C:\Users\Mingchuan\Huanglab\spatial\PRISM\code\src'
 if package_path not in sys.path: sys.path.append(package_path)
 
 # workdir 
-BASE_DIR = Path('path_to_processed_dataset')
-RUN_ID = 'example_data'
+BASE_DIR = Path(r'G:\spatial_data\processed')
+RUN_ID = '20250720_FFPE_HSY_T_5um'
 src_dir = BASE_DIR / RUN_ID
 read_dir = src_dir / 'readout'
 figure_dir = read_dir / 'figures'
@@ -36,8 +37,8 @@ shutil.copy(os.path.abspath(__file__), read_dir)
 
 # parameters
 ## basic
-PRISM_PANEL = 'PRISM45' # 'PRISM30', 'PRISM31', 'PRISM45', 'PRISM46', 'PRISM63', 'PRISM64'
-GLAYER, COLOR_GRADE = 3, 5
+PRISM_PANEL = 'PRISM30' # 'PRISM30', 'PRISM31', 'PRISM45', 'PRISM46', 'PRISM63', 'PRISM64'
+GLAYER, COLOR_GRADE = 2, 5
 Q_CHNS = ['Ye/A', 'B/A', 'R/A']
 Q_NUM = int(COLOR_GRADE * (COLOR_GRADE + 1)/2)
 ## sum intensity threshold
@@ -103,7 +104,7 @@ plt.close()
 
 
 # deduplicate
-from ..src.gene_calling.data_preprocess import deduplicate_df
+from gene_calling.data_preprocess import deduplicate_df
 intensity = intensity[(intensity['sum']>thre_min)&(intensity['sum']<thre_max)]
 intensity = deduplicate_df(intensity, columns=['Y','X'], sort_by='sum', threshold=2)
 
