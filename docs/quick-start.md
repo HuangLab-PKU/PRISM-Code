@@ -35,7 +35,7 @@ graph TD
 
 **Prerequisites:**
 - Download sample data from Zenodo: [MouseEmbryo Data](https://zenodo.org/records/13219763)
-- Organize data according to [Data Architecture](data_architecture.md)
+- Organize data according to [Data Architecture](data-architecture.md)
 
 **Workflow Steps:**
 
@@ -63,7 +63,7 @@ graph TD
 
 **Prerequisites:**
 - Download raw data from [HCC Raw Images](https://disk.pku.edu.cn/link/AA382E67AE9779469C97814C27892A43DF)
-- Organize data according to [Data Architecture](data_architecture.md)
+- Organize data according to [Data Architecture](data-architecture.md)
 
 **Workflow Steps:**
 
@@ -123,8 +123,8 @@ python scripts/multi_channel_readout_refactored.py
 
 ## Next Steps
 
-- View [Detailed Usage Guide](detailed_usage.md) for comprehensive workflow instructions
-- Understand [Data Architecture](data_architecture.md) requirements
+- View [Detailed Usage Guide](detailed-usage.md) for comprehensive workflow instructions
+- Understand [Data Architecture](data-architecture.md) requirements
 - Refer to [Installation Guide](installation.md) for environment setup
 - Check [Tutorial](tutorial.md) for step-by-step operations
 - Explore [Configuration Guide](configuration.md) for parameter customization

@@ -89,7 +89,7 @@ python scripts/image_process_after_stack.py
 
 ##### 3D Reconstruction of 2D Images
 
-If your images are captured as mentioned in [Data Architecture](data_architecture.md) above and you want to restore the z-stack information (even if only 10μm), change the parameters file path in `pipeline_3D.py` and run:
+If your images are captured as mentioned in [Data Architecture](data-architecture.md) above and you want to restore the z-stack information (even if only 10μm), change the parameters file path in `pipeline_3D.py` and run:
 
 ```bash
 python pipeline_3D.py

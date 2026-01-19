@@ -60,17 +60,28 @@ git clone --depth 1 https://github.com/HuangLab-PKU/PRISM
 
 ### 2. Environment Setup
 
+> **📖 For detailed installation instructions, see [Installation Guide](docs/installation.md)**
+
 #### Prerequisites
-- **Python 3.8** (recommended)
+- **Python 3.8+** (recommended: Python 3.10)
 - **MATLAB** with Image Processing Toolbox
 - **MATLAB Engine for Python**
 
-#### Python Dependencies
-
-Install the required packages:
+#### Quick Installation (Conda - Recommended)
 
 ```bash
+cd code
+conda env create -f environment.yml
+conda activate prism
+pip install -e .
+```
+
+#### Alternative: pip Installation
+
+```bash
+cd code
 pip install -r requirements.txt
+pip install -e .
 ```
 
 #### MATLAB Engine Installation

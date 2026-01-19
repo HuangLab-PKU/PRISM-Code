@@ -1,0 +1,40 @@
+name: prism
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  # Core scientific stack (conda versions for better compatibility)
+  - numpy=1.26.4
+  - pandas=2.2.2
+  - scipy=1.13.0
+  - scikit-learn=1.4.2
+  # Imaging & IO
+  - opencv=4.9.0
+  - scikit-image=0.22.0
+  - pillow=10.3.0
+  - tifffile
+  # Deep learning (TensorFlow via conda-forge)
+  - tensorflow=2.16.1
+  - keras=3.3.3
+  # Visualization
+  - matplotlib=3.10.3
+  - seaborn=0.13.2
+  # Utilities
+  - tqdm=4.67.1
+  - pyyaml=6.0.1
+  - pip
+  # Additional packages via pip (install after conda env creation)
+  - pip:
+    - pathos==0.3.2
+    - PySimpleGUI==5.0.4
+    - cmap==0.2.2
+    - csbdeep==0.8.1
+    - stardist==0.9.1
+    - SimpleITK==2.3.1
+
+# Notes:
+# 1. MATLAB Engine (matlabengine) must be installed separately via MATLAB's setup
+# 2. For GPU support, use: conda install -c conda-forge tensorflow-gpu
+# 3. After creating environment, activate it, cd to code/ directory, and run: pip install -e .
+#    (PRISM package must be installed separately because -e . requires being in the code/ directory)

@@ -5,30 +5,30 @@ Welcome to the PRISM documentation! This directory contains comprehensive guides
 ## Documentation Structure
 
 ### Getting Started
-- **[Quick Start](quick_start.md)** - Get up and running with PRISM quickly
+- **[Quick Start](quick-start.md)** - Get up and running with PRISM quickly
 - **[Installation Guide](installation.md)** - Complete installation instructions including MATLAB setup
 
 ### User Guides
-- **[Detailed Usage Guide](detailed_usage.md)** - Comprehensive workflow documentation
+- **[Detailed Usage Guide](detailed-usage.md)** - Comprehensive workflow documentation
 - **[Configuration Guide](configuration.md)** - Parameter configuration and customization
 
 ### Technical Reference
-- **[API Reference](api_reference.md)** - Complete API documentation for developers
+- **[API Reference](api-reference.md)** - Complete API documentation for developers
 
 ## Quick Navigation
 
 ### For New Users
-1. Start with [Quick Start](quick_start.md) to understand the basic workflow
+1. Start with [Quick Start](quick-start.md) to understand the basic workflow
 2. Follow [Installation Guide](installation.md) to set up your environment
-3. Use [Detailed Usage Guide](detailed_usage.md) for step-by-step instructions
+3. Use [Detailed Usage Guide](detailed-usage.md) for step-by-step instructions
 
 ### For Experienced Users
 1. Check [Configuration Guide](configuration.md) for parameter tuning
-2. Refer to [API Reference](api_reference.md) for advanced usage
-3. Use [Detailed Usage Guide](detailed_usage.md) for specific workflow steps
+2. Refer to [API Reference](api-reference.md) for advanced usage
+3. Use [Detailed Usage Guide](detailed-usage.md) for specific workflow steps
 
 ### For Developers
-1. Review [API Reference](api_reference.md) for complete function documentation
+1. Review [API Reference](api-reference.md) for complete function documentation
 2. Check [Configuration Guide](configuration.md) for configuration file structure
 3. Use [Installation Guide](installation.md) for development environment setup
 
