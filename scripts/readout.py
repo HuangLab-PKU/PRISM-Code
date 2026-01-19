@@ -49,7 +49,7 @@ read_dir.mkdir(exist_ok=True)
 
 # Detection parameters
 DETECTION_METHOD = 'spotiflow'  # 'spotiflow', 'gaussian_tophat', or 'tophat'
-DETECTION_SNR = {'cy5': 8.0, 'TxRed': 8.0, 'cy3': 8.0, 'FAM': 8.0}  # For traditional methods
+DETECTION_SNR = {'cy5': 3.0, 'TxRed': 3.0, 'cy3': 3.0, 'FAM': 3.0}  # For traditional methods
 
 # Intensity reading parameters
 TOPHAT_RADIUS = 3
