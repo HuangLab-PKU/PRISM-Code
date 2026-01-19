@@ -16,6 +16,13 @@ venv/
 .venv
 .ipynb_checkpoints/
 
+# 忽略Python包构建文件
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
 # 忽略R历史文件
 .Rhistory
 .RData

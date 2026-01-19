@@ -5,7 +5,7 @@ from stardist.models import Config2D, StarDist2D
 from csbdeep.utils import Path
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from src.spot_detection.dataset import load_data, prepare_data
+from prism.readout.legacy.spot_detection_old.dataset import load_data, prepare_data
 import argparse
 
 

@@ -47,7 +47,7 @@ pip install -e .
 ### 步骤4：验证安装
 
 ```python
-python -c "from src.gene_calling.pipeline import SignalClassificationPipeline; print('✓ 安装成功')"
+python -c "from prism.gene_calling.pipeline import SignalClassificationPipeline; print('✓ 安装成功')"
 ```
 
 ---
@@ -113,9 +113,9 @@ python -m scripts.readout
 ### 导入模块
 
 ```python
-from src.gene_calling.pipeline import SignalClassificationPipeline
-from src.readout.spot_detection import get_spot_coordinates
-from src.image_process.utils.io_utils import get_tif_list
+from prism.gene_calling.pipeline import SignalClassificationPipeline
+from prism.readout.spot_detection import get_spot_coordinates
+from prism.image_process.utils.io_utils import get_tif_list
 ```
 
 ---

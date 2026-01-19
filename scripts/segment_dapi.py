@@ -8,8 +8,8 @@ from pathlib import Path
 
 # Import from installed PRISM package
 # After running: pip install -e . (from code/ directory)
-from src.cell_segmentation.unified_segmentation import UnifiedSegmentation
-from src.cell_segmentation.segmentation_config import SegmentationConfig
+from prism.cell_segmentation.unified_segmentation import UnifiedSegmentation
+from prism.cell_segmentation.segmentation_config import SegmentationConfig
 
 
 def run_segmentation(base_dir: str, run_id: str, cell_image_name: str = 'cyc_1_DAPI.tif',

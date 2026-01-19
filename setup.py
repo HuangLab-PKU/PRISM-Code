@@ -5,9 +5,9 @@ Install in development mode:
     cd code
     pip install -e .
 
-This allows importing from src modules directly:
-    from src.gene_calling.pipeline import SignalClassificationPipeline
-    from src.readout.spot_detection import get_spot_coordinates
+This allows importing from prism package:
+    from prism.gene_calling.pipeline import SignalClassificationPipeline
+    from prism.readout.spot_detection import get_spot_coordinates
 """
 
 from setuptools import setup, find_packages
@@ -34,11 +34,12 @@ if readme_path.exists():
 setup(
     name="prism",
     version="0.1.0",
-    description="PRISM: Probe-based Imaging for Spatial Transcriptomics",
+    description="PRISM: profiling of RNA in situ through single-round imaging",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Huang Lab",
-    packages=find_packages(exclude=["notebooks", "projects", "local", "legacy"]),
+    package_dir={"prism": "src"},
+    packages=["prism"] + [f"prism.{pkg}" for pkg in find_packages("src", exclude=["notebooks", "projects", "local", "legacy"]) if pkg],
     python_requires=">=3.8",
     install_requires=requirements,
     # Include non-Python files if needed

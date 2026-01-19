@@ -11,12 +11,12 @@ from skimage.io import imread, imsave
 from scipy.io import loadmat
 
 # Import from installed PRISM package
-from src.image_process.utils.io_utils import get_tif_list
-from src.image_process.os_snippets import try_mkdir
-from src.image_process.fstack import stack_cyc
-from src.image_process.cidre import cidre_walk
-from src.image_process.register import register_meta, register_manual
-from src.image_process.stitch import patch_tiles, template_stitch, stitch_offset, stitch_manual
+from prism.image_process.utils.io_utils import get_tif_list
+from prism.image_process.os_snippets import try_mkdir
+from prism.image_process.fstack import stack_cyc
+from prism.image_process.cidre import cidre_walk
+from prism.image_process.register import register_meta, register_manual
+from prism.image_process.stitch import patch_tiles, template_stitch, stitch_offset
 
 
 SRC_DIR = Path('path_to_raw_dataset')

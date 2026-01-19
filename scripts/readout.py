@@ -27,10 +27,9 @@ import logging
 from concurrent.futures import ProcessPoolExecutor
 
 # Import from installed PRISM package
-# After running: pip install -e . (from code/ directory)
-from src.readout.spot_detection import get_spot_coordinates
-from src.readout.intensity_readout import read_intensity_tophat
-from src.readout.deduplicate import deduplicate_dataframe
+from prism.readout.spot_detection import get_spot_coordinates
+from prism.readout.intensity_readout import read_intensity_tophat
+from prism.readout.deduplicate import deduplicate_dataframe
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

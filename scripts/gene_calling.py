@@ -19,11 +19,10 @@ import shutil
 from pathlib import Path
 import pandas as pd
 import numpy as np
-import yaml
 import logging
 
 # Import from installed PRISM package
-from src.gene_calling.pipeline import SignalClassificationPipeline
+from prism.gene_calling.pipeline import SignalClassificationPipeline
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
