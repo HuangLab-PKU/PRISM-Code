@@ -1,11 +1,24 @@
-# 忽略系统和临时文件
+# test files
+/test/
+
+# local usage files
+/projects/
+/experiments/
+
+# Ignore editor configurations
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore system and temporary files
 .DS_Store
 *.log
 *.tmp
 Thumbs.db
 desktop.ini
 
-# 忽略Python缓存
+# Ignore Python cache files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -16,31 +29,18 @@ venv/
 .venv
 .ipynb_checkpoints/
 
-# 忽略Python包构建文件
+# Ignore Python package build files
 *.egg-info/
 dist/
 build/
 *.egg
 .eggs/
 
-# 忽略R历史文件
+# Ignore R history files
 .Rhistory
 .RData
 .Rproj.user/
 
-# 忽略MATLAB临时文件
+# Ignore MATLAB temporary files
 *.asv
 *.m~
-
-# 忽略编辑器配置
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# test file
-/test/
-
-# local use files
-/local/
-/projects/

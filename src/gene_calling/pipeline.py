@@ -9,7 +9,8 @@ from typing import Dict, Any, Optional, Union
 import yaml
 import logging
 from .base import ClassificationResult
-from .gmm_method import GMMMethod
+from .methods.gmm_method import GMMMethod
+from .methods.postcode_method import PostcodeMethod
 from .evaluator import ClassificationEvaluator
 from .config_loader import load_gene_calling_config, validate_gene_calling_config
 
@@ -90,10 +91,21 @@ class SignalClassificationPipeline:
                     "scale_features": True,
                 },
             },
+            # PRISM panel meta-data (used by some methods such as GMM)
+            "prism_panel": {
+                "type": "PRISM30",
+                "num_per_layer": 15,
+                "g_layer_num": 2,
+                "total_components": 30,
+                "channel_grading": {
+                    "color_channels": 5,
+                    "layer_channel": 2,
+                },
+            },
             "evaluation": {"visualization": {"figure_size": (10, 8), "dpi": 300}},
         }
 
-    def _create_method(self) -> GMMMethod:
+    def _create_method(self):
         """Create method based on configuration."""
         method = self.config.get("classification", {}).get("method", "gmm")
 
@@ -120,6 +132,17 @@ class SignalClassificationPipeline:
             )
 
             return GMMMethod(gmm_config)
+        elif method == "postcode":
+            # Configuration for PostcodeMethod:
+            # - PoSTcode-specific options are expected under the "postcode" key
+            # - PRISM panel information is passed separately
+            prism_config = self.config.get("prism_panel", {})
+            postcode_method_config: Dict[str, Any] = {
+                "prism_panel_type": prism_config.get("type", "PRISM30"),
+                "postcode": self.config.get("postcode", {}),
+            }
+
+            return PostcodeMethod(postcode_method_config)
         else:
             raise ValueError(f"Unsupported classification method: {method}")
 

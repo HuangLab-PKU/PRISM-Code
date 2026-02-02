@@ -104,7 +104,7 @@ def validate_gene_calling_config(config: Dict[str, Any]) -> List[str]:
         method = config["classification"].get("method")
         if not method:
             errors.append("Classification method not specified")
-        elif method not in ["gmm"]:  # Add more methods as they're implemented
+        elif method not in ["gmm", "postcode"]:
             errors.append(f"Unsupported classification method: {method}")
 
     # Validate GMM configuration if method is GMM
@@ -128,6 +128,9 @@ def validate_gene_calling_config(config: Dict[str, Any]) -> List[str]:
             for param in required_prism_params:
                 if param not in prism_config:
                     errors.append(f"Missing required PRISM panel parameter: {param}")
+
+    # For PoSTcode, we are currently lenient: core parameter checks are handled
+    # inside PostcodeMethod itself.
 
     # Validate feature extraction
     if "feature_extraction" in config:

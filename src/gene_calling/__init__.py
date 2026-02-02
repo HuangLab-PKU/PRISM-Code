@@ -6,7 +6,7 @@ Gaussian Mixture Models (GMM) and other classification methods.
 """
 
 from .pipeline import SignalClassificationPipeline
-from .gmm_method import GMMMethod
+from .methods.gmm_method import GMMMethod
 from .base import ClassificationResult
 from .config_loader import load_gene_calling_config, validate_gene_calling_config
 
