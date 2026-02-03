@@ -23,10 +23,7 @@ from .intensity_readout import (
 from .utils import (
     deduplicate_coordinates,
     deduplicate_dataframe,
-    image_memmap_blocks,
     block_starts,
-    process_image_blocks,
-    with_memmap_blocks,
 )
 
 __all__ = [
@@ -42,8 +39,5 @@ __all__ = [
     # Deduplication & utils
     'deduplicate_coordinates',
     'deduplicate_dataframe',
-    'image_memmap_blocks',
     'block_starts',
-    'process_image_blocks',
-    'with_memmap_blocks',
 ]

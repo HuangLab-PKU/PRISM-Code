@@ -1,0 +1,33 @@
+# Readout pipeline config (RUN_ID is passed via command line)
+
+# Base directory for processed data; output will be BASE_DIR / "{RUN_ID}_processed"
+base_dir: "\\\\10.10.10.1\\NAS Processed Images"
+
+# Input image filenames (under stitched dir); stem (no extension) is used as channel label in output
+channel_files:
+  - cyc_1_cy5.tif
+  - cyc_1_TxRed.tif
+  - cyc_1_cy3.tif
+  - cyc_1_FAM.tif
+
+# Spot detection
+detection_method: spotiflow  # spotiflow, gaussian_tophat, tophat
+detection_snr:  # per-file stem SNR for traditional methods (key = Path(filename).stem)
+  cyc_1_cy5: 3.0
+  cyc_1_TxRed: 3.0
+  cyc_1_cy3: 3.0
+  cyc_1_FAM: 3.0
+
+# Intensity reading (tophat + local max)
+tophat_radius: 3
+search_radius: 1  # 3x3 max
+
+# Deduplication
+dedup_threshold: 2  # pixels
+
+# Block processing
+block_size: [2048, 2048]
+block_overlap: [64, 64]
+
+# Parallel workers (detection: 1 when spotiflow to avoid multi-load; intensity uses this)
+n_workers: 4
