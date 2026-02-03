@@ -305,7 +305,6 @@ def main(run_id, stc_dir, read_dir):
             n_miss = intensity_df[channel].isna().sum()
             logger.warning(f"  {channel}: {n_miss} spots had no intensity (fill with 0)")
             intensity_df[channel] = intensity_df[channel].fillna(0)
-    intensity_df[CHANNELS] = intensity_df[CHANNELS].astype(np.float32)
     logger.info(f"Intensity reading completed for {len(intensity_df)} spots")
     
     # Stage 3: Final Deduplication
