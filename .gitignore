@@ -41,7 +41,7 @@ build/
 .cursor*
 
 # test file
-test/
+*test/
 
 # local use files
 /local/

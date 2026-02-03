@@ -1,19 +1,36 @@
 """
-Gene calling module for PRISM signal point classification.
+Gene Calling Module
 
-This module provides tools for classifying signal points into genes using
-Gaussian Mixture Models (GMM) and other classification methods.
+This module provides a flexible framework for classifying signal points based on
+multi-channel intensity values. The framework supports various classification methods
+including GMM, and can be easily extended with new algorithms.
+
+Key Features:
+- Multi-channel signal point classification
+- Support for different classification algorithms
+- Configurable preprocessing and feature extraction
+- Comprehensive evaluation and visualization
+- Manual threshold adjustment capabilities
+- Quantitative evaluation tools
+- Integration with existing PRISM pipeline
 """
 
-from .pipeline import SignalClassificationPipeline
+from .base import BaseClassifier, ClassificationResult
 from .gmm_method import GMMMethod
-from .base import ClassificationResult
+from .manual_method import ManualThresholdAdjuster
+from .evaluator import ClassificationEvaluator, QuantitativeEvaluator
+from .pipeline import SignalClassificationPipeline
 from .config_loader import load_gene_calling_config, validate_gene_calling_config
 
+__version__ = "1.0.0"
 __all__ = [
-    'SignalClassificationPipeline',
-    'GMMMethod',
-    'ClassificationResult',
-    'load_gene_calling_config',
-    'validate_gene_calling_config',
+    "BaseClassifier",
+    "ClassificationResult",
+    "GMMMethod",
+    "ManualThresholdAdjuster",
+    "ClassificationEvaluator",
+    "QuantitativeEvaluator",
+    "SignalClassificationPipeline",
+    "load_gene_calling_config",
+    "validate_gene_calling_config",
 ]
