@@ -1,0 +1,23 @@
+# Spot Detection Main Configuration File
+# This file loads and combines all spot detection configuration modules
+
+# Configuration modules to load
+config_modules:
+  - spot_detection_base.yaml
+  - spot_detection_traditional.yaml
+  - spot_detection_intensity.yaml
+
+# Override specific parameters if needed
+overrides:
+  # Example: Override detection method
+  # detection_method:
+  #   type: 'deep_learning'
+  
+  # Example: Override intensity extraction method
+  # intensity_extraction:
+  #   method: 'adaptive'
+  
+  # Example: Override specific parameters
+  # image_processing:
+  #   tophat_kernel_size: 5
+  #   tophat_break: 50

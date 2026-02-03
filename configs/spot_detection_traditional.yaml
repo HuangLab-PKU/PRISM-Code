@@ -1,0 +1,50 @@
+# Spot Detection Traditional Method Configuration
+# Parameters for traditional image processing-based spot detection
+
+# Detection Method Configuration
+method: 'traditional'
+
+# Traditional method parameters
+traditional:
+    # Background removal method
+    background_removal:
+        method: 'tophat'  # Options: 'tophat', 'wavelet', 'gaussian'
+        kernel_size: 7
+        tophat_break: 100
+    
+    # Coordinate detection method
+    coordinate_detection:
+        method: 'local_max'  # Options: 'local_max', 'stardist', 'other'
+        min_distance: 2
+        local_max_thre: 200
+        intensity_thre: null
+    
+    # Quality control
+    snr_threshold: 8.0
+    check_snr: false
+    remove_duplicates: true
+    distance_threshold: 2.0
+
+# Image Processing Parameters
+image_processing:
+  # Background removal (consolidated from multiple sections)
+  tophat_kernel_size: 7
+  tophat_break: 100
+  
+  # Channel-specific thresholds (using unified channel names)
+  local_max_abs_thre_ch:
+    ch1: 200  # cy5 - Far Red
+    ch2: 200  # TxRed - Red
+    ch3: 200  # cy3 - Green
+    ch4: 200  # FAM - Green
+  
+  # Intensity filtering
+  intensity_thre: null
+  cal_snr: false
+
+# Signal Processing Parameters
+signal_processing:
+  snr: 8
+  neighborhood_size: 10
+  kernel_size: 5
+  min_distance: 2

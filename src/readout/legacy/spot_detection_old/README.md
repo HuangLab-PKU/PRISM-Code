@@ -1,61 +1,183 @@
-# Data Preparation for Spot Detection Training
+# Spot Detection Framework
 
-This guide explains how to prepare your data for training the spot detection model. The model is based on StarDist, which requires image and mask pairs for training.
+A maintainable and extensible spot detection framework supporting multiple detection methods and intensity extraction strategies.
 
-## 1. Data Structure
+## Key Features
 
-Organize your training data into the following directory structure:
+- **Modular Design**: Supports traditional and deep learning methods
+- **Extensibility**: Easy to add new background removal, coordinate detection, and intensity extraction methods
+- **Image Sharing**: Smart caching of processed images to avoid redundant computation
+- **Large Image Support**: Automatic tiling with dynamic memory-based thresholds
+- **Multi-channel Support**: Unified channel system (ch1, ch2, ch3, ch4) with matrix-based corrections
+- **Configuration-driven**: Modular configuration system with separate files for different components
+- **Memory Management**: Intelligent memory usage based on available RAM and channel count
+- **Coordinate Deduplication**: Automatic removal of duplicate coordinates across channels
+- **Output Separation**: Separate raw and transformed intensity files for downstream analysis
 
+## Quick Start
+
+### Basic Usage
+
+```python
+from spot_detection import detect_spots
+import numpy as np
+
+# Create test image
+image = np.random.rand(1000, 1000) * 1000
+
+# Detect spots
+result = detect_spots(image, method='traditional', intensity_method='gaussian')
+
+print(f"Detected {len(result.coordinates)} spots")
+print(f"Intensity range: {result.intensities['intensity'].min():.2f} - {result.intensities['intensity'].max():.2f}")
 ```
-data/
-└── training/
-    ├── images/
-    │   ├── sample_01.tif
-    │   ├── sample_02.tif
-    │   └── ...
-    └── masks/
-        ├── sample_01.tif
-        ├── sample_02.tif
-        └── ...
+
+### Using Preset Configurations
+
+```python
+from spot_detection import create_preset_detector
+
+# Create fast detector
+detector = create_preset_detector('traditional_fast')
+result = detector.detect_spots(image)
+
+# Create accurate detector
+detector = create_preset_detector('traditional_accurate')
+result = detector.detect_spots(image)
 ```
 
--   `images/`: This folder should contain your raw **multi-channel** 2D TIFF images. Each file should be a stack where each slice represents a different channel (e.g., a 4-channel image would have the shape `(4, height, width)`).
--   `masks/`: This folder should contain the corresponding single-channel 2D ground truth segmentation masks. Each mask should be a label image where every unique spot (regardless of which channel it appears in) is represented by a unique integer ID.
+### Multi-channel Processing
 
-## 2. Creating Masks
+```python
+# Multi-channel image dictionary using unified channel names
+image_dict = {
+    'ch1': cy5_image,      # 670nm - Cy5
+    'ch2': txred_image,    # 615nm - Texas Red  
+    'ch3': cy3_image,      # 550nm - Cy3
+    'ch4': fam_image       # 520nm - FAM
+}
 
-The quality of your training data, especially the masks, is crucial for the model's performance. You can use an annotation tool like [napari](https://napari.org/) or [Fiji/ImageJ](https://imagej.net/Fiji) to create the masks.
+# Detect multi-channel spots
+result = detect_spots(image_dict, method='traditional', intensity_method='direct')
 
-### Using napari for Annotation
+# Access results
+print(f"Total spots: {len(result.coordinates)}")
+print(f"Intensity columns: {list(result.intensities.keys())}")
+```
 
-1.  **Install napari**:
-    ```bash
-    pip install "napari[all]"
-    ```
+## Documentation
 
-2.  **Load your multi-channel image**:
-    Open napari and drag-and-drop one of your multi-channel TIFF images into the viewer. It should open as a stack.
+For detailed information, see the comprehensive documentation:
 
-3.  **Create a new labels layer**:
-    Click the "New labels layer" button in the layer list.
+- **[Installation Guide](docs/installation.md)** - Setup and installation instructions
+- **[Detailed Usage](docs/detailed_usage.md)** - Comprehensive usage examples and API reference
+- **[Configuration Guide](docs/configuration.md)** - Configuration file options and examples
+- **[Detection Methods](docs/detection_methods.md)** - Available detection algorithms
+- **[Intensity Extraction](docs/intensity_extraction.md)** - Intensity extraction strategies
+- **[Advanced Usage](docs/advanced_usage.md)** - Custom detectors and framework extension
+- **[Performance Guide](docs/performance.md)** - Optimization and performance tuning
 
-4.  **Annotate your spots**:
-    -   Go through the different channels of your image using the slider.
-    -   On the single labels layer, annotate all unique spots you see across all channels. If a spot appears in multiple channels, you only need to annotate it once.
-    -   Select the "paint" tool and carefully paint over each spot. Each spot should be a distinct object in the mask.
-    -   Ensure that each spot has a unique integer label.
+## Command Line Usage
 
-5.  **Save the mask**:
-    -   Select the labels layer you created.
-    -   Go to `File > Save Selected Layer(s)...`.
-    -   Save the file as a TIFF image (`.tif`) in the `masks` directory. Make sure the filename matches the corresponding image in the `images` directory. The mask should be saved as a `uint16` or `uint32` image.
+The main execution script is `spot_detection_pipeline.py` which provides a unified interface for both single and multi-channel spot detection:
 
-### Annotation Tips
+```bash
+# Multi-channel processing (recommended)
+python scripts/spot_detection_pipeline.py \
+    --input stitched \
+    --run-id 20230523_HCC_PRISM_probe_refined_crop \
+    --data-dir G:/spatial_data \
+    --config code/configs/spot_detection.yaml
 
--   **Be consistent**: Annotate spots with a consistent size and shape.
--   **Cover all examples**: Include examples of spots that appear in single channels and spots that appear in multiple channels.
--   **Background**: The background in the mask should have a value of 0.
+# With custom output directory
+python scripts/spot_detection_pipeline.py \
+    --input stitched \
+    --run-id your_run_id \
+    --data-dir /path/to/data \
+    --output /path/to/output \
+    --config code/configs/spot_detection.yaml
 
-## 3. Training and Validation Split
+# Verbose output for debugging
+python scripts/spot_detection_pipeline.py \
+    --input stitched \
+    --run-id your_run_id \
+    --data-dir G:/spatial_data \
+    --config code/configs/spot_detection.yaml \
+    --verbose
+```
 
-The training script will automatically split your data into training and validation sets. A typical split is 90% for training and 10% for validation. You should have at least 10-20 images with high-quality annotations to start with. The more data, the better the model will perform.
+### Command Line Arguments
+
+- `--input, -i`: Input image directory (e.g., "stitched" subdirectory)
+- `--run-id`: Run ID for processing (required)
+- `--data-dir`: Base data directory (default: "G:/spatial_data")
+- `--output, -o`: Output directory (default: {data_dir}/processed/{run_id}/readout)
+- `--config`: Configuration file path (required)
+- `--multi-channel`: Process as multi-channel (default: True)
+- `--verbose, -v`: Verbose output for debugging
+
+### Output Files
+
+The pipeline generates the following output files in the `readout` directory:
+
+- `intensity_raw.csv`: Raw intensity values (ch1, ch2, ch3, ch4)
+- `intensity.csv`: Transformed intensity values (after matrix correction)
+- `coordinates.csv`: Spot coordinates (Y, X)
+- `metadata.yaml`: Processing metadata and parameters
+- `channel_info.yaml`: Channel configuration and mapping information
+- `full_config.yaml`: Complete merged configuration used
+- `spot_detection.yaml`: Original configuration file copy
+
+## Configuration System
+
+The framework uses a modular configuration system with separate files for different components:
+
+- `spot_detection_base.yaml` - Base configuration (channels, memory, tiling)
+- `spot_detection_traditional.yaml` - Traditional detection parameters
+- `spot_detection_deep_learning.yaml` - Deep learning detection parameters  
+- `spot_detection_intensity.yaml` - Intensity extraction parameters
+- `spot_detection.yaml` - Main configuration file that loads all modules
+
+### Key Features
+
+- **Unified Channel System**: Uses ch1, ch2, ch3, ch4 for consistent channel naming
+- **Dynamic Memory Management**: Automatically calculates tiling thresholds based on available memory and channel count
+- **Matrix-based Corrections**: Supports crosstalk correction and scaling transformations
+- **Modular Design**: Easy to extend with new detection methods and intensity extractors
+
+## Dependencies
+
+- numpy
+- pandas
+- opencv-python
+- scikit-image
+- scipy
+- tqdm
+- pyyaml
+- stardist (for deep learning methods)
+
+## Backward Compatibility
+
+The framework maintains backward compatibility with existing `multi_channel_readout` functions. Legacy functions are available in the `legacy` module:
+
+```python
+from spot_detection import tophat_spots, extract_coordinates
+
+# Legacy functions still available
+tophat_image = tophat_spots(image)
+coordinates = extract_coordinates(tophat_image)
+```
+
+### Legacy Files
+
+The following legacy files have been moved to `scripts/legacy/` for reference:
+
+- `multi_channel_readout.py` - Original multi-channel processing script
+- `multi_channel_readout_refactored.py` - Refactored version
+- `multi_channel_readout_dp.py` - Data processing version
+
+These files are preserved for backward compatibility and reference, but the new unified framework is recommended for all new projects.
+
+## License
+
+This project follows the project license.
