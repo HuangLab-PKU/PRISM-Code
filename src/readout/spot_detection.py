@@ -597,7 +597,7 @@ def get_coordinates_for_tile(registered_dir, tile_name, channels, cycle_num, snr
         default_kwargs = {'sigma': 1.0, 'tophat_radius': 3}
     elif method == 'spotiflow':
         # Spotiflow defaults: use confidence threshold instead of SNR
-        default_kwargs = {'prob_thresh': 0.2}
+        default_kwargs = {'prob_thresh': None}
     else:
         raise ValueError(f"Unknown method: {method}")
     

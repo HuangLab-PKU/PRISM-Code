@@ -20,7 +20,14 @@ from .intensity_readout import (
     get_intensity_df_for_tile,
 )
 
-from .deduplicate import deduplicate_coordinates, deduplicate_dataframe
+from .utils import (
+    deduplicate_coordinates,
+    deduplicate_dataframe,
+    image_memmap_blocks,
+    block_starts,
+    process_image_blocks,
+    with_memmap_blocks,
+)
 
 __all__ = [
     # Spot detection
@@ -32,7 +39,11 @@ __all__ = [
     'read_intensity_tophat',
     'read_intensity_raw',
     'get_intensity_df_for_tile',
-    # Deduplication
+    # Deduplication & utils
     'deduplicate_coordinates',
     'deduplicate_dataframe',
+    'image_memmap_blocks',
+    'block_starts',
+    'process_image_blocks',
+    'with_memmap_blocks',
 ]
