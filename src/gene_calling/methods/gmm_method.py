@@ -12,7 +12,7 @@ from sklearn.mixture import GaussianMixture
 import logging
 import time
 
-from .base import ClassificationResult
+from ..base import ClassificationResult
 
 logger = logging.getLogger(__name__)
 

@@ -16,10 +16,11 @@ Key Features:
 """
 
 from .base import BaseClassifier, ClassificationResult
-from .gmm_method import GMMMethod
+from .methods.gmm_method import GMMMethod
 from .manual_method import ManualThresholdAdjuster
 from .evaluator import ClassificationEvaluator, QuantitativeEvaluator
 from .pipeline import SignalClassificationPipeline
+from .base import ClassificationResult
 from .config_loader import load_gene_calling_config, validate_gene_calling_config
 
 __version__ = "1.0.0"

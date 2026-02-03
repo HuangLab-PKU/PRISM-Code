@@ -481,7 +481,13 @@ class ClassificationEvaluator:
             if faux_layer_by_label:
                 ax_scatter.set_title(layer_titles[layer])
             else:
-                ax_scatter.set_title(f"G Layer {layer}")
+                # For PRISM-style panels where G_layer encodes ch3 layer (0/1),
+                # use more meaningful titles "chn3=0" / "chn3=1" when applicable.
+                unique_layers = np.unique(plot_g_layer)
+                if np.array_equal(np.sort(unique_layers[unique_layers >= 0]), np.array([0, 1])):
+                    ax_scatter.set_title(f"chn3={layer}")
+                else:
+                    ax_scatter.set_title(f"G Layer {layer}")
 
             # Plot labeled points
             for label in unique_labels:
