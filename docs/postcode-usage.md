@@ -60,11 +60,13 @@ python scripts/gene_calling_postcode.py --run-id 20230523_HCC_PRISM_probe_refine
 
 **错误**：`ModuleNotFoundError: No module named 'postcode'`
 
-**解决**：检查PoSTcode路径是否正确：
-```python
-# 路径应该是：
-# C:\Users\Mingchuan\Huanglab\spatial\PRISM\external\SPRINTseq-code\local\test\postcode\source-code
+**解决**：postcode 由 SPRINTseq 仓库 vendor，通过 editable install 进入 env：
+
+```powershell
+mamba run -n spatial-prep-dp pip install -e C:/Users/Mingchuan/Huanglab/SPRINTseq/experiments/src/postcode
 ```
+
+确认安装：`mamba run -n spatial-prep-dp python -c "import postcode"`
 
 ### 问题2：Codebook文件未找到
 

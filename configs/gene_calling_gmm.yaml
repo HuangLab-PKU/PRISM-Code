@@ -5,10 +5,6 @@
 preprocessing:
   # Gaussian noise for boundary points
   gaussian_noise_scale: 0.01
-  
-  # Intensity thresholds (for filtering if needed)
-  thre_min: 200          # Minimum intensity threshold
-  thre_max: 10000        # Maximum intensity threshold
 
 # GMM classification parameters
 classification:

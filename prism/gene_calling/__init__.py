@@ -16,18 +16,21 @@ Key Features:
 """
 
 from .base import BaseClassifier, ClassificationResult
+from .correction import apply_channel_correction
 from .methods.gmm_method import GMMMethod
+from .methods.codebook_gmm_method import CodebookGMMMethod
 from .manual_method import ManualThresholdAdjuster
 from .evaluator import ClassificationEvaluator, QuantitativeEvaluator
 from .pipeline import SignalClassificationPipeline
-from .base import ClassificationResult
 from .config_loader import load_gene_calling_config, validate_gene_calling_config
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __all__ = [
     "BaseClassifier",
     "ClassificationResult",
+    "apply_channel_correction",
     "GMMMethod",
+    "CodebookGMMMethod",
     "ManualThresholdAdjuster",
     "ClassificationEvaluator",
     "QuantitativeEvaluator",

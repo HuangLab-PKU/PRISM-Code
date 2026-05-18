@@ -93,54 +93,78 @@ def validate_gene_calling_config(config: Dict[str, Any]) -> List[str]:
     """
     errors = []
 
-    # Check required sections
-    required_sections = ["data", "feature_extraction", "classification"]
-    for section in required_sections:
-        if section not in config:
-            errors.append(f"Missing required configuration section: {section}")
+    # Classification method is required
+    method = config.get("classification", {}).get("method")
+    if not method:
+        errors.append("Classification method not specified")
+    elif method not in ("gmm", "codebook_gmm", "postcode"):
+        errors.append(f"Unsupported classification method: {method}")
 
-    # Validate classification method
-    if "classification" in config:
-        method = config["classification"].get("method")
-        if not method:
-            errors.append("Classification method not specified")
-        elif method not in ["gmm", "postcode"]:
-            errors.append(f"Unsupported classification method: {method}")
-
-    # Validate GMM configuration if method is GMM
-    if config.get("classification", {}).get("method") == "gmm":
+    # --- GMM (legacy) validation ---
+    if method == "gmm":
         gmm_config = config.get("classification", {}).get("gmm", {})
         if not gmm_config:
-            errors.append("GMM configuration missing")
+            errors.append("GMM configuration missing (classification.gmm)")
         else:
-            # Check required GMM parameters (num_per_layer is now in base config)
-            required_gmm_params = ["covariance_type"]
-            for param in required_gmm_params:
-                if param not in gmm_config:
-                    errors.append(f"Missing required GMM parameter: {param}")
+            if "covariance_type" not in gmm_config:
+                errors.append("Missing required GMM parameter: covariance_type")
 
-        # Check PRISM panel parameters in base config
         prism_config = config.get("prism_panel", {})
         if not prism_config:
-            errors.append("PRISM panel configuration missing")
+            errors.append("PRISM panel configuration missing (prism_panel)")
         else:
-            required_prism_params = ["type", "num_per_layer", "g_layer_num"]
-            for param in required_prism_params:
+            for param in ("type", "num_per_layer", "g_layer_num"):
                 if param not in prism_config:
                     errors.append(f"Missing required PRISM panel parameter: {param}")
 
-    # For PoSTcode, we are currently lenient: core parameter checks are handled
-    # inside PostcodeMethod itself.
+    # --- Codebook GMM validation ---
+    if method == "codebook_gmm":
+        codebook_path = config.get("codebook", {}).get("path")
+        if not codebook_path:
+            errors.append(
+                "codebook.path is required when using codebook_gmm method"
+            )
+        elif not Path(codebook_path).exists():
+            # Try resolving relative to config directory (not fatal at validate time)
+            logger.warning(
+                "codebook.path '%s' does not exist as an absolute path; "
+                "it will be resolved at runtime relative to the config directory.",
+                codebook_path,
+            )
 
-    # Validate feature extraction
+    # --- Channel correction validation ---
+    correction_cfg = config.get("channel_correction", {})
+    channels = correction_cfg.get("channels", {})
+    if channels:
+        matrix = correction_cfg.get("transform_matrix")
+        if matrix is not None:
+            n = len(channels)
+            if not (
+                isinstance(matrix, list)
+                and len(matrix) == n
+                and all(isinstance(row, list) and len(row) == n for row in matrix)
+            ):
+                errors.append(
+                    f"channel_correction.transform_matrix must be a {n}x{n} nested list"
+                )
+
+        # Validate each channel entry has at least 'fluorophore'
+        for excitation_col, meta in channels.items():
+            if "fluorophore" not in meta:
+                errors.append(
+                    f"channel_correction.channels.{excitation_col} "
+                    "missing required key 'fluorophore'"
+                )
+
+    # --- Feature extraction validation ---
     if "feature_extraction" in config:
         feature_types = config["feature_extraction"].get("feature_types", [])
-        valid_types = [
+        valid_types = {
             "ratios",
             "projections",
             "intensity_features",
             "statistical_features",
-        ]
+        }
         for feature_type in feature_types:
             if feature_type not in valid_types:
                 errors.append(f"Invalid feature type: {feature_type}")

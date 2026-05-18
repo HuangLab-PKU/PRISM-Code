@@ -9,15 +9,7 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import logging
-import sys
 import itertools
-
-# Add external PoSTcode to path
-# Path from code/src/gene_calling/methods/postcode_method.py to PRISM root
-_prism_root = Path(__file__).parent.parent.parent.parent.parent
-_postcode_path = _prism_root / "external" / "SPRINTseq-code" / "local" / "test" / "postcode" / "source-code"
-if str(_postcode_path) not in sys.path:
-    sys.path.insert(0, str(_postcode_path))
 
 from postcode.decoding_functions import (
     decoding_function, e_step, torch_format, chol_sigma_from_vec, 

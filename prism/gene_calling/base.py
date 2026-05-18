@@ -20,12 +20,46 @@ class ClassificationResult:
     metadata: Optional[Dict[str, Any]] = None
 
     def to_dataframe(self, original_data: pd.DataFrame) -> pd.DataFrame:
-        """Convert results to DataFrame with only label and confidence."""
-        # Create a minimal DataFrame with only prediction results
-        result_df = pd.DataFrame({"predicted_label": self.labels})
+        """Convert results to DataFrame with soft classification output.
+
+        Columns produced:
+
+        * ``top1_label``, ``top1_prob`` -- best-matching component index and
+          its probability.
+        * ``top2_label``, ``top2_prob`` -- second-best component.
+        * ``top1_gene``, ``top2_gene`` -- gene names (only when a codebook is
+          available in ``self.metadata``).
+        * ``predicted_label``, ``prediction_confidence`` -- kept for backward
+          compatibility with old GMMMethod consumers.
+        """
+        result_df = pd.DataFrame()
 
         if self.probabilities is not None:
-            result_df["prediction_confidence"] = np.max(self.probabilities, axis=1)
+            top2_idx = np.argsort(self.probabilities, axis=1)[:, -2:][:, ::-1]
+            n = len(top2_idx)
+
+            result_df["top1_label"] = top2_idx[:, 0]
+            result_df["top1_prob"] = self.probabilities[np.arange(n), top2_idx[:, 0]]
+            result_df["top2_label"] = top2_idx[:, 1]
+            result_df["top2_prob"] = self.probabilities[np.arange(n), top2_idx[:, 1]]
+
+            # Map integer labels to gene names when a codebook is available
+            codebook = (self.metadata or {}).get("codebook")
+            if codebook is not None and "gene" in codebook.columns:
+                gene_names = codebook["gene"].values
+                result_df["top1_gene"] = gene_names[top2_idx[:, 0]]
+                result_df["top2_gene"] = gene_names[top2_idx[:, 1]]
+
+            # Backward-compatible columns
+            result_df["predicted_label"] = top2_idx[:, 0]
+            result_df["prediction_confidence"] = result_df["top1_prob"]
+        else:
+            result_df["top1_label"] = self.labels
+            result_df["top1_prob"] = np.nan
+            result_df["top2_label"] = np.nan
+            result_df["top2_prob"] = np.nan
+            result_df["predicted_label"] = self.labels
+            result_df["prediction_confidence"] = np.nan
 
         return result_df
 

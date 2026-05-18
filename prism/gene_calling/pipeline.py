@@ -9,6 +9,7 @@ from typing import Dict, Any, Optional, Union
 import yaml
 import logging
 from .base import ClassificationResult
+from .correction import apply_channel_correction
 from .methods.gmm_method import GMMMethod
 from .methods.postcode_method import PostcodeMethod
 from .evaluator import ClassificationEvaluator
@@ -38,9 +39,11 @@ class SignalClassificationPipeline:
         self.logger = logging.getLogger(__name__)
 
         # Load configuration
+        self._config_dir = None  # For resolving relative paths
         if config is not None:
             self.config = config
         elif config_path is not None:
+            self._config_dir = Path(config_path).parent
             self.config = load_gene_calling_config(config_path)
         else:
             self.config = self._get_default_config()
@@ -58,6 +61,7 @@ class SignalClassificationPipeline:
         self.is_fitted = False
         self.training_data = None
         self.training_features = None
+        self.corrected_data = None  # Populated after channel correction
 
     def _load_config(self, config_path: Union[str, Path]) -> Dict[str, Any]:
         """Load configuration from YAML file."""
@@ -67,12 +71,23 @@ class SignalClassificationPipeline:
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default configuration."""
         return {
+            "channel_correction": {
+                "channels": {
+                    "r01_ex628": {"fluorophore": "r01_Cy5", "excitation_nm": 628, "emission_nm": 670, "role": "color"},
+                    "r01_ex586": {"fluorophore": "r01_TxRed", "excitation_nm": 586, "emission_nm": 615, "role": "color"},
+                    "r01_ex531": {"fluorophore": "r01_Cy3", "excitation_nm": 531, "emission_nm": 550, "role": "layer"},
+                    "r01_ex485": {"fluorophore": "r01_FAM", "excitation_nm": 485, "emission_nm": 520, "role": "color"},
+                },
+                "transform_matrix": [
+                    [1.0, 0.0, 0.0, 0.0],
+                    [0.0, 1.0, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.0, 0.0, 0.0, 1.0],
+                ],
+                "clip_negative": True,
+            },
             "preprocessing": {
-                "scaling_factors": {"ch1": 1.0, "ch2": 1.0, "ch3": 1.0, "ch4": 1.0},
-                "crosstalk_factor": 0.25,
-                "fret_adjustments": {"G_ye_factor": 0.6, "B_g_factor": 0.1},
                 "gaussian_noise_scale": 0.01,
-                "prism_panel": "PRISM30",
             },
             "feature_extraction": {
                 "feature_types": ["ratios", "projections", "intensity_features"],
@@ -91,7 +106,6 @@ class SignalClassificationPipeline:
                     "scale_features": True,
                 },
             },
-            # PRISM panel meta-data (used by some methods such as GMM)
             "prism_panel": {
                 "type": "PRISM30",
                 "num_per_layer": 15,
@@ -132,6 +146,45 @@ class SignalClassificationPipeline:
             )
 
             return GMMMethod(gmm_config)
+        elif method == "codebook_gmm":
+            from .methods.codebook_gmm_method import CodebookGMMMethod
+
+            codebook_cfg = self.config.get("codebook", {})
+            codebook_path = codebook_cfg.get("path")
+            if codebook_path is None:
+                raise ValueError(
+                    "codebook.path must be set when using codebook_gmm method"
+                )
+            # Resolve relative paths against config directory
+            codebook_path = Path(codebook_path)
+            if not codebook_path.is_absolute() and self._config_dir is not None:
+                codebook_path = self._config_dir / codebook_path
+            codebook_df = pd.read_csv(codebook_path)
+
+            # Build channel roles from correction config
+            correction_channels = (
+                self.config.get("channel_correction", {}).get("channels", {})
+            )
+            channel_roles = {
+                v["fluorophore"]: v["role"]
+                for v in correction_channels.values()
+            }
+
+            gmm_params = self.config.get("classification", {}).get(
+                "codebook_gmm", {}
+            )
+            codebook_gmm_config = {
+                **gmm_params,
+                "centroid_max_movement": self.config.get(
+                    "centroid_max_movement", 0.15
+                ),
+                "constrained_fit_rounds": self.config.get(
+                    "constrained_fit_rounds", 1
+                ),
+            }
+
+            return CodebookGMMMethod(codebook_gmm_config, codebook_df, channel_roles)
+
         elif method == "postcode":
             # Configuration for PostcodeMethod:
             # - PoSTcode-specific options are expected under the "postcode" key
@@ -191,19 +244,6 @@ class SignalClassificationPipeline:
         # Apply preprocessing using method's preprocess method
         processed_data = self.method.preprocess(data)
 
-        # Apply intensity thresholds
-        thre_min = self.config.get("preprocessing", {}).get("thre_min", 200)
-        thre_max = self.config.get("preprocessing", {}).get("thre_max", 10000)
-
-        if "sum" in processed_data.columns:
-            mask = (processed_data["sum"] > thre_min) & (
-                processed_data["sum"] < thre_max
-            )
-            processed_data = processed_data[mask]
-            self.logger.info(
-                f"Applied intensity thresholds: {len(processed_data)} points remaining"
-            )
-
         return processed_data
 
     def extract_features(self, data: pd.DataFrame) -> np.ndarray:
@@ -223,6 +263,26 @@ class SignalClassificationPipeline:
         )
         return features
 
+    def _apply_correction(self, data: pd.DataFrame) -> pd.DataFrame:
+        """Apply channel correction if configured.
+
+        Renames excitation-wavelength columns to fluorophore names and applies
+        the unmixing matrix.  Saves ``intensity_corrected.csv`` when
+        ``output_path`` is set in the correction config.
+        """
+        correction_cfg = self.config.get("channel_correction", {})
+        channels = correction_cfg.get("channels")
+        if not channels:
+            return data
+
+        return apply_channel_correction(
+            data,
+            channels,
+            correction_cfg.get("transform_matrix", np.eye(len(channels))),
+            correction_cfg.get("clip_negative", True),
+            output_path=correction_cfg.get("output_path"),
+        )
+
     def fit(
         self, data: pd.DataFrame, ground_truth: Optional[np.ndarray] = None
     ) -> "SignalClassificationPipeline":
@@ -237,6 +297,10 @@ class SignalClassificationPipeline:
             Self for method chaining
         """
         self.logger.info("Fitting classification pipeline")
+
+        # Apply channel correction (rename + matrix + clip)
+        data = self._apply_correction(data)
+        self.corrected_data = data
 
         # Store training data
         self.training_data = data.copy()
@@ -264,6 +328,9 @@ class SignalClassificationPipeline:
             raise ValueError("Pipeline must be fitted before prediction")
 
         self.logger.info("Making predictions")
+
+        # Apply channel correction (same as fit)
+        data = self._apply_correction(data)
 
         # Make predictions (method handles preprocessing and feature extraction internally)
         result = self.method.predict(data)
