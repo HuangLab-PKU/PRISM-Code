@@ -1,6 +1,7 @@
 """Deduplication module for removing duplicate spots."""
 
 import numpy as np
+import pandas as pd
 from scipy.spatial import cKDTree
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
@@ -41,7 +42,8 @@ def deduplicate_coordinates(coordinates, threshold=2, scores=None):
     # When scores given, sort by score descending so "first" in each component = best
     order = None
     if scores is not None:
-        order = np.argsort(-np.asarray(scores))
+        scores_arr = np.asarray(scores, dtype=np.float64)
+        order = np.argsort(-scores_arr)
         coords = coords[order]
 
     # Build KDTree for efficient distance queries
@@ -76,7 +78,7 @@ def deduplicate_coordinates(coordinates, threshold=2, scores=None):
     return kept_indices, deduplicated_coords
 
 
-def deduplicate_dataframe(df, coordinate_columns=['Y', 'X'], threshold=2, scores=None):
+def deduplicate_dataframe(df, coordinate_columns=['Y', 'X'], threshold=2, sort_by=None):
     """Remove duplicate rows based on coordinate proximity.
 
     Parameters
@@ -88,10 +90,7 @@ def deduplicate_dataframe(df, coordinate_columns=['Y', 'X'], threshold=2, scores
     threshold : float
         Distance threshold for considering coordinates as duplicates (default: 2 pixels)
     sort_by : str, optional
-        Column name to sort by before deduplication. Higher values are preferred.
-        If None, first row in each group is kept.
-    ascending : str, optional
-        Column name to sort by before deduplication. Higher values are preferred.
+        Column name to use as score; higher values are preferred. Must be numeric (e.g. intensity).
         If None, first row in each group is kept.
 
     Returns
@@ -99,13 +98,16 @@ def deduplicate_dataframe(df, coordinate_columns=['Y', 'X'], threshold=2, scores
     pd.DataFrame
         Deduplicated DataFrame
     """
-    if len(df) == 0: 
+    if len(df) == 0:
         return df.copy()
 
-    # Extract coordinates
     coordinates = df[coordinate_columns].values
 
-    # Deduplicate
+    # Resolve sort_by column to numeric array (uint16 intensity -> float64 for negation in sort)
+    scores = None
+    if sort_by is not None and sort_by in df.columns:
+        scores = pd.to_numeric(df[sort_by], errors='coerce').to_numpy(dtype=np.float64)
+
     kept_indices, _ = deduplicate_coordinates(coordinates, threshold=threshold, scores=scores)
 
     # Return deduplicated dataframe

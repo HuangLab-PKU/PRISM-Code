@@ -4,11 +4,14 @@
 base_dir: "\\\\10.10.10.1\\NAS Processed Images"
 
 # Input image filenames (under stitched dir); stem (no extension) is used as channel label in output
+# Naming convention: r{round:02d}_ex{excitation_wavelength_nm}.tif
+#   r01 = round 1 (single-round for PRISM, multi-round ready)
+#   ex628 = excitation center wavelength in nm
 channel_files:
-  - cyc_1_cy5.tif
-  - cyc_1_TxRed.tif
-  - cyc_1_cy3.tif
-  - cyc_1_FAM.tif
+  - cyc_1_cy5.tif    # Cy5,   excitation 628nm (bw40), emission ~670nm
+  - cyc_1_TxRed.tif    # TxRed, excitation 586nm (bw20), emission ~615nm
+  - cyc_1_cy3.tif    # Cy3,   excitation 531nm (bw40), emission ~550nm
+  - cyc_1_FAM.tif    # FAM,   excitation 485nm (bw20), emission ~520nm
 
 # Spot detection
 detection_method: spotiflow  # spotiflow, gaussian_tophat, tophat

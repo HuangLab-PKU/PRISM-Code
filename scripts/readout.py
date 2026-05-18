@@ -323,7 +323,6 @@ def main(run_id, stc_dir, read_dir):
             coordinate_columns=['Y', 'X'],
             threshold=DEDUP_THRESHOLD,
             sort_by='max_intensity',
-            ascending=False
         )
         intensity_df = intensity_df.drop(columns=['max_intensity'])
     else:
