@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prism"
+version = "0.1.0"
+description = "PRISM: Profiling of RNA In-situ through Single-round iMaging — radius-vector color-intensity barcoding for high-plex spatial transcriptomics (Chang et al., Nature Biotechnology 2025, doi:10.1038/s41587-025-02883-7)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "HuangLab-PKU" }]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+# Baseline dependencies cover stitching, illumination correction, registration,
+# intensity readout, the GMM and codebook-GMM gene-calling methods, and DAPI
+# segmentation via the cellpose path. PoSTcode (Bayesian gene calling) and
+# StarDist-based segmentation are isolated as optional extras because they
+# bring heavyweight DL frameworks with conflicting backends.
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "scikit-learn",
+    "scikit-image",
+    "opencv-python",
+    "tifffile",
+    "Pillow",
+    "SimpleITK",
+    "tqdm",
+    "PyYAML",
+    "matplotlib",
+    "seaborn",
+    "cmap",
+    "pathos",
+    "csbdeep",
+]
+
+# Optional extras. PoSTcode (HuangLab fork) is NOT on PyPI — install it as
+# editable from the SPRINTseq vendored tree:
+#     pip install -e <SPRINTseq>/experiments/src/postcode
+# StarDist still ships TensorFlow 2.10 wheels and pins numpy<2 on Windows; if
+# you need it, build a separate env (see docs/installation.md).
+[project.optional-dependencies]
+postcode = ["torch", "pyro-ppl"]
+stardist-tf = ["tensorflow==2.10.1", "stardist"]
+cellpose = ["cellpose"]
+gui = ["PySimpleGUI"]
+test = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/HuangLab-PKU/PRISM-Code"
+Repository = "https://github.com/HuangLab-PKU/PRISM-Code"
+Publication = "https://doi.org/10.1038/s41587-025-02883-7"
+
+[tool.setuptools.packages.find]
+include = ["prism*"]

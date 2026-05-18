@@ -1,11 +1,7 @@
 # local usage files
 /projects/
 /experiments/
-/projects/
-
-# test file
 /test/
-
 
 # Ignore editor configurations
 .vscode/
