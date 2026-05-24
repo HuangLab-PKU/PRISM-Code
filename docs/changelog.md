@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- `prism.image_process` subpackage and `scripts/image_process.py`. Image processing (focal stacking, illumination correction, registration, stitching, AIRLOCALIZE) has been split out into the sibling package `spatial_img_core` (`Huanglab/spatial_img_core/`). PRISM now starts from stitched images only.
+- `SimpleITK` dependency (only `image_process/register_sitk.py` consumed it).
+- Six image-processing notebooks were moved out of `code/notebooks/` to `spatial_img_core/notebooks/`: `image_process_3D`, `density_im_generate_2D`, `density_im_generate_3D`, `cell_segment_confocal_3D`, `dapi_prediction_confocal_3D`, `convex_hull_projection_confocal_3D`.
+
+### Changed
+- `pyproject.toml` description / classifier / dependency-comment now reflect post-stitching scope.
+- Root `CLAUDE.md`, `code/README.md`, and all `code/docs/*.md` updated to point to `spatial_img_core` for upstream image processing and to correct stale `code/src/` references (actual layout is flat `code/prism/`).
+- `code/scripts/legacy/README.md` carries a WARNING block at the top: scripts that import the removed `prism.image_process` (multi_channel_readout*, spot_detection_pipeline, image_scan_fstack, image_process_pipeline, pipeline_3D) no longer run as-is.
+
 ### Added
 - Comprehensive documentation structure in `docs/` directory
 - YAML-based configuration system for multi-channel readout

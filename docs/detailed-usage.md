@@ -39,20 +39,20 @@ Output root
 ### Directory Descriptions
 
 ```shell
-# In image processing
-dest_dir = BASE_DIR / f'{RUN_ID}_processed' # processed data
-aif_dir = dest_dir / 'focal_stacked'        # scan_fstack.py
-sdc_dir = dest_dir / 'background_corrected' # image_process_after_stack.py
-rsz_dir = dest_dir / 'resized'              # image_process_after_stack.py
-rgs_dir = dest_dir / 'registered'           # image_process_after_stack.py
-stc_dir = dest_dir / 'stitched'             # image_process_after_stack.py
+# Upstream (populated by spatial_img_core; PRISM only reads from `stitched/`)
+dest_dir = BASE_DIR / f'{RUN_ID}_processed' # processed data root
+aif_dir  = dest_dir / 'focal_stacked'       # spatial_img_core
+sdc_dir  = dest_dir / 'background_corrected'# spatial_img_core (temporary)
+rsz_dir  = dest_dir / 'resized'             # spatial_img_core (temporary)
+rgs_dir  = dest_dir / 'registered'          # spatial_img_core
+stc_dir  = dest_dir / 'stitched'            # spatial_img_core
 
-# In subsequent analysis
-src_dir = BASE_DIR / f'{RUN_ID}_processed'  # processed data
-stc_dir = src_dir / 'stitched'              # image_process_after_stack.py
-read_dir = src_dir / 'readout'              # multi_channel_readout.py
-seg_dir = src_dir / 'segmented'             # segment2D.py or segment3D.py or expression_matrix.py
-visual_dir = src_dir / 'visualization'      # folder for figures...
+# PRISM (this repo) — reads stitched/, writes the rest
+src_dir    = BASE_DIR / f'{RUN_ID}_processed'
+stc_dir    = src_dir / 'stitched'           # input to readout
+read_dir   = src_dir / 'readout'            # scripts/readout.py
+seg_dir    = src_dir / 'segmented'          # scripts/segment_dapi.py
+visual_dir = src_dir / 'visualization'      # figures
 ```
 
 ## Complete PRISM Workflow
@@ -61,43 +61,19 @@ visual_dir = src_dir / 'visualization'      # folder for figures...
 
 This step is not always necessary because you can design probes with specific binding sites, barcodes and corresponding fluorophore probes manually or contact us for help. However, if you want to design probes easily or in bulk, see: [probe_designer](https://github.com/tangmc0210/probe_designer).
 
-### 2. Image Processing
+### 2. Image Processing (upstream — see `spatial_img_core`)
 
-#### 2D Image Processing
+PRISM starts from **stitched** images. The full image-acquisition chain — focal stacking, illumination correction (BaSiCPy / legacy CIDRE), per-cycle / per-channel registration, pcorr_bigstitcher / MIST stitching, optional 3D AIRLOCALIZE — now lives in the sibling package `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`) (`Huanglab/spatial_img_core/`).
 
-Steps 1 and 2 are used to generate a complete image for each channel used in the experiment. If you have other methods to perform this image processing, store the name of each channel's image as `cyc_1_channel.tif`.
-
-##### Step 1: Scan_fstack
-
-Edit the directory in the Python file `scan_fstack.py` and run the code:
+Typical usage (after `pip install -e ../../spatial_img_core/core` in the same env):
 
 ```bash
-python scripts/scan_fstack.py Raw_data_root
+spatial-img-pipeline --help
+# or, in Python / a notebook:
+#   from spatial_img_core.pipeline import run_pipeline
 ```
 
-**Remark**: This step processes raw images captured in small fields and multiple channels. You can use it to process your own experimental data. We have provided a preprocessed example dataset for Step 2 and subsequent pipeline steps, located at `./dataset/processed/_example_dataset_processed`. You can change the RUN_ID in each script to `_example_dataset` and continue with the following steps.
-
-##### Step 2: Image_process
-
-Edit the directory in the Python file `image_process/image_process_after_stack.py` accordingly, and run the code:
-
-```bash
-python scripts/image_process_after_stack.py
-```
-
-**Remark**: This step includes registering the subimages, correcting the background, and stitching them into a whole image. Results will be stitched into n big images (where n is the number of channels you use) in `stc_dir`, which will be used in the next part.
-
-##### 3D Reconstruction of 2D Images
-
-If your images are captured as mentioned in [Data Architecture](data-architecture.md) above and you want to restore the z-stack information (even if only 10μm), change the parameters file path in `pipeline_3D.py` and run:
-
-```bash
-python pipeline_3D.py
-```
-
-to read the intensity from raw images.
-
-**Remark**: This pipeline includes 2D processing as cycle shift and global position of each tile is needed from the 2D pipeline. After that, airlocalize is performed to extract spots in 3D (z-stack number as the depth). Remember to change the parameters file path and adjust the parameters for your own data before running the code.
+Output that PRISM expects: one stitched TIFF per cycle / channel under `<run_id>_processed/stitched/`, e.g. `cyc_1_cy5.tif`, `cyc_1_TxRed.tif`, `cyc_1_cy3.tif`, `cyc_1_FAM.tif`, `cyc_1_DAPI.tif`.
 
 ### 3. Spot Detection
 
@@ -166,13 +142,7 @@ After the model is trained, you can use it to detect and quantify spots in new, 
 
 If your images are captured by confocal, light-sheet or any other 3D microscopy and you have a registered and stitched grayscale 3D image of each channel in TIFF format:
 
-We recommend using [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE) in MATLAB to perform spot extraction because of its well-designed user interface for adjusting proper parameters. Open MATLAB and run `AIRLOCALIZE.m` in `src/Image_process/lib/AIRLOCALIZE-MATLAB`. The input files should be located at `path_to_runid/RUN_ID_processed/stitched` and the output path should be `path_to_runid/RUN_ID_processed/readout/tmp`.
-
-> Alternatively, spot extraction can be performed using airlocalize.py with proper parameters (set at `Image_process\lib\AIRLOCALIZE\parameters.yaml`).
->
-> ```bash
-> python image_process/lib/AIRLOCALIZE/airlocalize.py
-> ```
+We recommend using [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE) in MATLAB to perform 3D spot extraction because of its well-designed UI for parameter tuning. Both the Python wrapper and the MATLAB tree previously bundled under `prism/image_process/AIRLOCALIZE*` have moved to the sibling `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`) package — invoke them from there. Inputs go to `<run>_processed/stitched/`, outputs to `<run>_processed/readout/tmp/`.
 
 After that, intensity decoding and gene calling can be performed using `gene_calling\readout_gene_calling_3d.ipynb`.
 

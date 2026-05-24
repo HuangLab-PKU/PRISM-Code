@@ -4,6 +4,8 @@
 
 This document describes the data structure and organization requirements for PRISM processing. Understanding the data architecture is crucial for successful analysis.
 
+> **Note**: directories `focal_stacked/`, `background_corrected/`, `resized/`, `registered/`, `stitched/` are produced by the sibling package `spatial_img_core` (sibling repo) (upstream image processing). PRISM reads from `stitched/` and writes only `readout/`, `segmented/`, `visualization/`.
+
 ## Raw Data Structure
 
 ### Directory Organization
@@ -66,14 +68,14 @@ Output root
 
 ### Directory Descriptions
 
-#### Image Processing Directories
-- `focal_stacked/`: Results from scan_fstack.py
-- `background_corrected/`: Background correction results (temporary)
-- `resized/`: Resized images (temporary)
-- `registered/`: Registered images
-- `stitched/`: Final stitched images
+#### Image Processing Directories (produced by `spatial_img_core`)
+- `focal_stacked/`: Focal-stacked tiles
+- `background_corrected/`: Illumination-corrected tiles (temporary by default)
+- `resized/`: Resized tiles (temporary by default)
+- `registered/`: Cross-cycle / cross-channel registered tiles
+- `stitched/`: Final stitched per-channel TIFFs — the input PRISM expects
 
-#### Analysis Directories
+#### Analysis Directories (written by PRISM)
 - `readout/`: Spot detection and intensity measurement results
 - `segmented/`: Cell segmentation results
 - `visualization/`: Output figures and visualizations
@@ -105,20 +107,20 @@ Contains cell segmentation results:
 The following variables are used in the code to define directory paths:
 
 ```python
-# In image processing
-dest_dir = BASE_DIR / f'{RUN_ID}_processed' # processed data
-aif_dir = dest_dir / 'focal_stacked'        # scan_fstack.py
-sdc_dir = dest_dir / 'background_corrected' # image_process_after_stack.py
-rsz_dir = dest_dir / 'resized'              # image_process_after_stack.py
-rgs_dir = dest_dir / 'registered'           # image_process_after_stack.py
-stc_dir = dest_dir / 'stitched'             # image_process_after_stack.py
+# Upstream (populated by spatial_img_core)
+dest_dir = BASE_DIR / f'{RUN_ID}_processed' # processed data root
+aif_dir  = dest_dir / 'focal_stacked'       # spatial_img_core
+sdc_dir  = dest_dir / 'background_corrected'# spatial_img_core (temporary)
+rsz_dir  = dest_dir / 'resized'             # spatial_img_core (temporary)
+rgs_dir  = dest_dir / 'registered'          # spatial_img_core
+stc_dir  = dest_dir / 'stitched'            # spatial_img_core
 
-# In subsequent analysis
-src_dir = BASE_DIR / f'{RUN_ID}_processed'  # processed data
-stc_dir = src_dir / 'stitched'              # image_process_after_stack.py
-read_dir = src_dir / 'readout'              # multi_channel_readout.py
-seg_dir = src_dir / 'segmented'             # segment2D.py or segment3D.py or expression_matrix.py
-visual_dir = src_dir / 'visualization'      # folder for figures...
+# PRISM (this repo) — reads stitched/, writes the rest
+src_dir    = BASE_DIR / f'{RUN_ID}_processed'
+stc_dir    = src_dir / 'stitched'           # input to readout
+read_dir   = src_dir / 'readout'            # scripts/readout.py
+seg_dir    = src_dir / 'segmented'          # scripts/segment_dapi.py
+visual_dir = src_dir / 'visualization'      # figures
 ```
 
 ## Data Requirements
@@ -140,10 +142,9 @@ visual_dir = src_dir / 'visualization'      # folder for figures...
 ## Data Flow
 
 ### Processing Pipeline
-1. **Raw Images** → `focal_stacked/`
-2. **Focal Stacked** → `background_corrected/` → `resized/` → `registered/` → `stitched/`
-3. **Stitched Images** → `readout/`
-4. **Readout Results** → `segmented/`
+1. **Raw Images → `stitched/`** — handled upstream by `spatial_img_core` (sibling repo) (focal stacking → illumination correction → resize → registration → stitching).
+2. **Stitched Images** → `readout/` — PRISM `scripts/readout.py`.
+3. **Readout Results** → `segmented/` — PRISM `scripts/segment_dapi.py`.
 
 ### File Dependencies
 - Spot detection requires stitched images

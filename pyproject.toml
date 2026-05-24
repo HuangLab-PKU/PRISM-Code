@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prism"
 version = "0.1.0"
-description = "PRISM: Profiling of RNA In-situ through Single-round iMaging — radius-vector color-intensity barcoding for high-plex spatial transcriptomics (Chang et al., Nature Biotechnology 2025, doi:10.1038/s41587-025-02883-7)."
+description = "PRISM post-stitching analysis: spot detection / readout, gene calling (GMM, codebook-GMM, PoSTcode), and DAPI-based cell segmentation. Image acquisition (focal stacking, illumination correction, registration, stitching) lives in the sibling spatial_img_core package. Chang et al., Nature Biotechnology 2025, doi:10.1038/s41587-025-02883-7."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
@@ -16,13 +16,14 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "Topic :: Scientific/Engineering :: Image Processing",
 ]
-# Baseline dependencies cover stitching, illumination correction, registration,
-# intensity readout, the GMM and codebook-GMM gene-calling methods, and DAPI
-# segmentation via the cellpose path. PoSTcode (Bayesian gene calling) and
-# StarDist-based segmentation are isolated as optional extras because they
-# bring heavyweight DL frameworks with conflicting backends.
+# Baseline covers intensity readout, the GMM and codebook-GMM gene-calling
+# methods, and DAPI segmentation via the cellpose path. Image-processing
+# primitives (focal stacking, illumination correction, registration, stitching)
+# now live in the sibling spatial_img_core package — install it separately when
+# the upstream pipeline is needed. PoSTcode (Bayesian gene calling) and
+# StarDist-based segmentation remain optional extras (heavyweight DL frameworks
+# with conflicting backends).
 dependencies = [
     "numpy",
     "scipy",
@@ -32,7 +33,6 @@ dependencies = [
     "opencv-python",
     "tifffile",
     "Pillow",
-    "SimpleITK",
     "tqdm",
     "PyYAML",
     "matplotlib",

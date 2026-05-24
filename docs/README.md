@@ -34,12 +34,12 @@ Welcome to the PRISM documentation! This directory contains comprehensive guides
 
 ## Key Features
 
-### Complete PRISM Workflow
-- **Probe Design**: Design custom probes for your targets
-- **Image Processing**: Process 2D and 3D microscopy images
-- **Spot Detection**: Detect RNA spots using feature-based or deep learning methods
-- **Gene Calling**: Identify genes using Gaussian Mixture Models
-- **Cell Segmentation**: Segment cells and generate expression matrices
+### PRISM Post-Stitching Pipeline
+- **Spot Detection**: Detect RNA spots from stitched images using feature-based or deep learning methods
+- **Gene Calling**: Identify genes using Gaussian Mixture Models (GMM / codebook-GMM / PoSTcode)
+- **Cell Segmentation**: Segment cells via DAPI and generate expression matrices
+
+Upstream (probe design, image acquisition / stitching) is handled by the sibling [`probe_designer`](https://github.com/tangmc0210/probe_designer) and `spatial_img_core` (sibling repo) packages.
 
 ### Refactored Multi-Channel Readout
 - **Modular Design**: Clean, maintainable code structure

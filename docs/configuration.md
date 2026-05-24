@@ -8,12 +8,13 @@ The PRISM project uses YAML format configuration files to manage processing para
 
 ```
 configs/
-├── default_multi_channel_readout.yaml    # Multi-channel readout configuration
-├── image_processing.yaml                # Image processing configuration (planned)
+├── default_multi_channel_readout.yaml   # Multi-channel readout configuration
 ├── gene_calling.yaml                    # Gene calling configuration (planned)
 ├── cell_segmentation.yaml               # Cell segmentation configuration (planned)
 └── analysis.yaml                        # Analysis configuration (planned)
 ```
+
+> Image-processing configuration (stitching, registration, illumination correction) lives in the sibling `spatial_img_core` (sibling repo) package, not in this repo.
 
 ## 1. Multi-Channel Readout Configuration
 
@@ -133,22 +134,7 @@ channel_transformation_matrix:
 - Matrix columns: [R, Ye, G, B] correspond to input channels
 
 
-## 2. Image Processing Configuration
-
-*This section will be implemented in future versions.*
-
-### Planned Configuration Files
-- `configs/image_processing.yaml`: Image processing parameters
-- `configs/stitching.yaml`: Image stitching parameters
-- `configs/registration.yaml`: Image registration parameters
-
-### Planned Parameters
-- Image preprocessing settings
-- Stitching algorithm parameters
-- Registration method selection
-- Quality control thresholds
-
-## 3. Gene Calling Configuration
+## 2. Gene Calling Configuration
 
 *This section will be implemented in future versions.*
 
@@ -163,7 +149,7 @@ channel_transformation_matrix:
 - Quality filtering criteria
 - Barcode mapping rules
 
-## 4. Cell Segmentation Configuration
+## 3. Cell Segmentation Configuration
 
 *This section will be implemented in future versions.*
 
@@ -178,7 +164,7 @@ channel_transformation_matrix:
 - Watershed parameters
 - Post-processing settings
 
-## 5. Analysis Configuration
+## 4. Analysis Configuration
 
 *This section will be implemented in future versions.*
 

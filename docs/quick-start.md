@@ -2,30 +2,23 @@
 
 ## Complete Workflow Overview
 
-The PRISM code consists of the following components: **probe_designer**, **image_process**, **gene_calling**, **cell_segmentation**, **analysis_cell_typing** and **analysis_subcellular**. Data will be processed in this order.
+PRISM is the **post-stitching** half of the pipeline: `readout` → `gene_calling` → `cell_segmentation` → `analysis`. Upstream (probe design → experiment → raw images → stitched images) lives in the sibling [`probe_designer`](https://github.com/tangmc0210/probe_designer) and `spatial_img_core` (sibling repo) packages.
 
 ```mermaid
 graph TD
-    A["Probe Design"] --> B["Experiment"];
-    
-    subgraph "Image Data Acquisition"
-        B --> C["2D Data Stack"];
-        B --> E["3D Data"];
+    A["Probe Design (probe_designer)"] --> B["Experiment"];
+    B --> C["Raw Images (2D / 3D)"];
+
+    subgraph "Upstream: spatial_img_core"
+        C --> D["Stitched Images"];
     end
-    
-    subgraph "Image Processing"
-        C --> D["2D Image Process"];
-        E --> F["3D Image Process"];
-    end
-    
-    D --> G("Gene Calling");
-    F --> G("Gene Calling");
-    
-    subgraph "Segmentation & Analysis"
-        G --> H["2D Cell Segment"];
-        G --> I["3D Cell Segment"];
-        H --> J["Analysis"];
-        I --> J["Analysis"];
+
+    D --> E("Spot Detection / Readout");
+    E --> F("Gene Calling");
+
+    subgraph "PRISM (this repo)"
+        F --> G["Cell Segmentation"];
+        G --> H["Analysis"];
     end
 ```
 
@@ -41,7 +34,7 @@ graph TD
 
 1. **Signal Detection**
    ```bash
-   python scripts/multi_channel_readout.py
+   python scripts/readout.py
    ```
 
 2. **Gene Calling**
@@ -51,7 +44,6 @@ graph TD
 3. **Cell Segmentation**
    ```bash
    python scripts/segment_dapi.py
-   python scripts/segment_cell_2D.py
    ```
 
 **Expected Outputs:**
@@ -61,31 +53,7 @@ graph TD
 
 ### Option B: Start from Raw Unstitched Images (Full Pipeline)
 
-**Prerequisites:**
-- Download raw data from [HCC Raw Images](https://disk.pku.edu.cn/link/AA382E67AE9779469C97814C27892A43DF)
-- Organize data according to [Data Architecture](data-architecture.md)
-
-**Workflow Steps:**
-
-1. **Image Processing**
-   ```bash
-   python scripts/image_process_pipeline.py
-   ```
-
-2. **Signal Detection**
-   ```bash
-   python scripts/multi_channel_readout.py
-   ```
-
-3. **Gene Calling**
-   - Use the provided notebook: `PRISM_gene_calling_2d_HCC.ipynb`
-   - Location: `20230523_HCC_PRISM_probe_refined_processed/readout/PRISM_gene_calling_2d_HCC.ipynb`
-
-4. **Cell Segmentation**
-   ```bash
-   python scripts/segment_dapi.py
-   python scripts/segment_cell_2D.py
-   ```
+PRISM no longer ships an in-tree image-processing layer. For raw → stitched output, use the sibling `spatial_img_core` (sibling repo) package (focal stacking, illumination correction, registration, pcorr_bigstitcher / MIST stitching, AIRLOCALIZE). Once stitched images land under `<run_id>_processed/stitched/`, continue with **Option A** above.
 
 ## Data Acquisition
 

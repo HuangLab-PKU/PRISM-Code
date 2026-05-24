@@ -1,4 +1,19 @@
-# PRISM Scripts Documentation
+# PRISM Scripts — legacy reference
+
+> **WARNING (2026-05):** scripts in this folder are kept for historical reference only and are **no longer maintained**. PRISM's scope was narrowed to post-stitching steps; the in-tree `prism.image_process` package was removed and image acquisition now lives in the sibling repo `Huanglab/spatial_img_core/`.
+>
+> Several scripts here import from `prism.image_process` (directly or transitively) and **will fail at import** with `ModuleNotFoundError` against the current package layout. Known affected:
+> `multi_channel_readout.py`, `multi_channel_readout_dp.py`, `multi_channel_readout_refactored.py`, `spot_detection_pipeline.py`, `image_scan_fstack.py`, `image_process_pipeline.py`, `pipeline_3D.py`.
+>
+> **Current entry points (use these for new work):**
+> - Spot detection + intensity readout — `scripts/readout.py`
+> - Gene calling — `scripts/gene_calling.py`
+> - DAPI segmentation — `scripts/segment_dapi.py`
+> - Channel calibration — `scripts/calibrate_channels.py`
+>
+> For image acquisition → stitched images (focal stacking, illumination correction, registration, stitching), see `spatial_img_core/` (sibling repo). The documentation below is preserved as-is to support reading older notebooks and RUNID archives.
+
+---
 
 This directory contains convenient script interfaces for running PRISM analysis workflows.
 

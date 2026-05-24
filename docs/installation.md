@@ -74,16 +74,17 @@ python -c "import tensorflow as tf; print('GPUs:', tf.config.list_physical_devic
 
 ---
 
-## MATLAB Engine（仅 image_process 的部分模块需要）
+## 上游图像处理（spatial_img_core）
 
-MATLAB Engine 不在 PyPI 上，必须用 MATLAB 自带的 setup：
+PRISM 从 stitched 图开始；如果你需要从原始小图到 stitched 的完整链路（focal stacking、illumination correction、registration、stitching），请在同一 mamba env 里把 sibling 包 `spatial_img_core` 也 editable 装上：
 
 ```powershell
-cd "<matlabroot>\extern\engines\python"
-python setup.py install
+mamba activate spatial-prep-dp
+pip install -e C:\Users\Mingchuan\Huanglab\spatial_img_core\core
+spatial-img-pipeline --help
 ```
 
-`<matlabroot>` 通常类似 `C:\Program Files\MATLAB\R2023a`。装哪个 env 就先 `mamba activate <env>` 再装。
+`spatial_img_core` 自带 BaSiCPy / 传统 CIDRE 光照校正、GPU phase-correlation 配准、pcorr_bigstitcher / MIST 拼接、focal stacking 等多套后端。其 MATLAB-backed 后端可选；如使用，再按 MATLAB 官方步骤装 `matlabengine`（PyPI 上的 wheel 已可用，无需手动 `python setup.py install`）。
 
 ---
 
@@ -102,7 +103,9 @@ python C:\Users\Mingchuan\Huanglab\PRISM\code\scripts\segment_dapi.py <run_id>
 ```python
 from prism.gene_calling.pipeline import SignalClassificationPipeline
 from prism.readout.spot_detection import get_spot_coordinates
-from prism.image_process.utils.io_utils import get_tif_list
+
+# Image-side helpers come from the sibling spatial_img_core package:
+from spatial_img_core.utils.io_utils import get_tif_list
 ```
 
 **注意**：不要把 Python 的 cwd 设在 `C:\Users\Mingchuan\Huanglab\`（即 Huanglab workspace 根目录）。该目录下有 `spatial_img_core/` 这个跟同名包冲突的子目录，PEP 420 namespace package 机制会先找到目录、屏蔽 editable install。`PRISM/` 跟 `prism` 因大小写不同不冲突，但保持 `cd code/` 或绝对路径运行更稳。
