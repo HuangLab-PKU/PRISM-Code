@@ -2,268 +2,192 @@
 
 ## Overview
 
-The PRISM project uses YAML format configuration files to manage processing parameters across different pipeline components. This guide covers configuration for all major PRISM modules.
-
-## Configuration File Structure
+PRISM uses YAML configuration files for the **readout** and **gene calling** stages. **Cell segmentation** is configured in Python (no YAML). Configuration files live in `configs/`:
 
 ```
 configs/
-├── default_multi_channel_readout.yaml   # Multi-channel readout configuration
-├── gene_calling.yaml                    # Gene calling configuration (planned)
-├── cell_segmentation.yaml               # Cell segmentation configuration (planned)
-└── analysis.yaml                        # Analysis configuration (planned)
+├── readout.yaml                  # Spot detection + intensity readout
+├── gene_calling.yaml             # Gene-calling loader (selects modules + overrides)
+├── gene_calling_base.yaml        # Shared gene-calling params (channel correction, codebook, panel, features)
+├── gene_calling_gmm.yaml         # GMM method parameters
+├── gene_calling_full.yaml        # Variant preset
+├── gene_calling_spherical.yaml   # Variant preset (spherical covariance)
+└── codebooks/
+    └── prism30.csv               # PRISM30 codebook
 ```
 
-> Image-processing configuration (stitching, registration, illumination correction) lives in the sibling `spatial_img_core` (sibling repo) package, not in this repo.
+> Image-processing configuration (stitching, registration, illumination correction) lives in the companion `spatial_img_core` package, not in this repo.
 
-## 1. Multi-Channel Readout Configuration
+---
 
-### Configuration Files
-- `configs/default_multi_channel_readout.yaml`: Default configuration file
+## 1. Readout Configuration (`readout.yaml`)
 
-### Base Settings (base)
+Used by `scripts/readout.py`. The `RUN_ID` is passed on the command line; everything else comes from this file.
 
 ```yaml
-base:
-  channels: ['cy5', 'TxRed', 'cy3', 'FAM']  # Channel list
-  base_dir: 'G:/spatial_data/processed'     # Data root directory
-  prism_panel: 'PRISM30'                    # PRISM panel type
-  max_memory: 32                            # Maximum memory usage (GB)
+# Base directory for processed data; outputs go to BASE_DIR / "{RUN_ID}_processed"
+base_dir: "/path/to/processed"
+
+# Stitched input filenames (under stitched/); the stem becomes the channel label in output
+channel_files:
+  - cyc_1_cy5.tif      # Cy5,   excitation 628 nm
+  - cyc_1_TxRed.tif    # TxRed, excitation 586 nm
+  - cyc_1_cy3.tif      # Cy3,   excitation 531 nm
+  - cyc_1_FAM.tif      # FAM,   excitation 485 nm
+
+# Spot detection
+detection_method: spotiflow   # spotiflow (default) | gaussian_tophat | tophat
+detection_snr:                # per-file-stem SNR for the traditional methods
+  cyc_1_cy5: 3.0
+  cyc_1_TxRed: 3.0
+  cyc_1_cy3: 3.0
+  cyc_1_FAM: 3.0
+
+# Intensity reading (tophat + local max)
+tophat_radius: 3
+search_radius: 1              # 3x3 max
+
+# Deduplication
+dedup_threshold: 2           # pixels
+
+# Block processing
+block_size: [2048, 2048]
+block_overlap: [64, 64]
+
+# Parallel workers
+n_workers: 4
 ```
 
-**Parameter Description**:
-- `channels`: List of fluorescent channels used in the experiment
-- `base_dir`: Root directory path for processed data
-- `prism_panel`: PRISM panel type, supports PRISM30, PRISM31, PRISM45, PRISM46, PRISM63, PRISM64
-- `max_memory`: Maximum memory used during processing, affects block size
+**Parameter notes**:
+- `base_dir`: root that contains `<RUN_ID>_processed/`. Edit this for your machine.
+- `channel_files`: one stitched TIFF per channel; the filename stem (e.g. `cyc_1_cy5`) is used as the column name in `intensity.csv`.
+- `detection_method`: `spotiflow` is the deep-learning default (the `readout.py` spotiflow path uses `device='cuda'`, so it needs a GPU). `gaussian_tophat` / `tophat` are CPU-friendly traditional fallbacks that use `detection_snr` and `tophat_radius`.
+- `block_size` / `block_overlap`: large stitched images are processed block-by-block; overlap avoids edge effects. `n_workers` sets process-pool parallelism.
 
-### Image Processing Parameters (image_processing)
+---
+
+## 2. Gene Calling Configuration (modular)
+
+Gene calling is config-driven and modular. `gene_calling.yaml` lists the modules to load and any overrides:
 
 ```yaml
-image_processing:
-  tophat_kernel_size: 7                    # Tophat kernel size
-  tophat_break: 100                        # Tophat threshold
-  local_max_abs_thre_ch:                   # Local maximum threshold for each channel
-    cy5: 200
-    TxRed: 200
-    FAM: 200
-    cy3: 200
-  intensity_thre: null                     # Intensity threshold
-  cal_snr: false                           # Whether to calculate SNR
+# gene_calling.yaml
+config_modules:
+  - gene_calling_base.yaml
+  - gene_calling_gmm.yaml
+
+overrides:
+  # e.g. classification:
+  #        gmm:
+  #          covariance_type: spherical
 ```
 
-**Parameter Description**:
-- `tophat_kernel_size`: Kernel size for morphological operations, used for background removal
-- `tophat_break`: Threshold after Tophat operation, pixels below this value are set to 0
-- `local_max_abs_thre_ch`: Local maximum detection threshold for each channel
-- `intensity_thre`: Intensity threshold for further spot filtering
-- `cal_snr`: Whether to calculate signal-to-noise ratio
+Variant presets such as `gene_calling_spherical.yaml` and `gene_calling_full.yaml` simply load the same base/method modules with different `overrides`.
 
-### Threshold Parameters (thresholds)
+### Method selection
+
+The classification method is set under `classification.method`:
+
+| Method | Status | Notes |
+|---|---|---|
+| `gmm` | **default** | Gaussian Mixture Model decoding (`gene_calling_gmm.yaml`) |
+| `codebook_gmm` | supported | GMM constrained by a codebook (`codebook.path`) |
+| `postcode` | **experimental** | Probabilistic decoding; opt-in. Requires the vendored PoSTcode package and a `postcode:` config section. See the [Installation Guide](installation.md). |
+
+### Channel correction (`gene_calling_base.yaml`)
+
+Maps `intensity.csv` columns (excitation wavelength) to fluorophore names and applies a 4×4 linear unmixing matrix to remove spectral crosstalk / FRET. The default is the identity matrix (no correction); use `scripts/calibrate_channels.py` to estimate the matrix from calibration experiments.
 
 ```yaml
-thresholds:
-  sum_threshold: 800                       # Sum intensity threshold
-  g_abs_threshold: 1000                    # G channel absolute threshold
-  g_threshold: 3                           # G channel relative threshold
-  g_maxvalue: 5                            # G channel maximum value
+channel_correction:
+  channels:
+    r01_ex628: {fluorophore: r01_Cy5,   excitation_nm: 628, emission_nm: 670, role: color}
+    r01_ex586: {fluorophore: r01_TxRed, excitation_nm: 586, emission_nm: 615, role: color}
+    r01_ex531: {fluorophore: r01_Cy3,   excitation_nm: 531, emission_nm: 550, role: layer}
+    r01_ex485: {fluorophore: r01_FAM,   excitation_nm: 485, emission_nm: 520, role: color}
+
+  # corrected = raw @ M^T  (column order follows channels above)
+  transform_matrix:
+    - [1.0, 0.0, 0.0, 0.0]
+    - [0.0, 1.0, 0.0, 0.0]
+    - [0.0, 0.0, 1.0, 0.0]
+    - [0.0, 0.0, 0.0, 1.0]
+  clip_negative: true
 ```
 
-**Parameter Description**:
-- `sum_threshold`: Minimum sum of all channel intensities for spot filtering
-- `g_abs_threshold`: Absolute threshold for G channel intensity
-- `g_threshold`: Relative threshold for G channel (multiple of background)
-- `g_maxvalue`: Maximum allowed value for G channel
+The `role` field distinguishes **color** channels (encode the barcode hue) from the **layer** channel (encodes intensity stratification).
 
-### Processing Settings (batch)
+### Codebook & panel
 
 ```yaml
-batch:
-  overlap: 500                             # Overlap between processing blocks (pixels)
-  max_volume_factor: 8                     # Factor for calculating max_volume
+codebook:
+  path: codebooks/prism30.csv   # relative to the config directory
+
+prism_panel:
+  type: "PRISM30"               # PRISM30, PRISM31, PRISM45, PRISM46, PRISM63, PRISM64
+  num_per_layer: 15
+  g_layer_num: 2
+  total_components: 30
+  channel_grading:
+    color_channels: 5
+    layer_channel: 2
 ```
 
-**Parameter Description**:
-- `overlap`: Overlap size between adjacent processing blocks to avoid edge effects
-- `max_volume_factor`: Factor used to calculate maximum processing volume based on available memory
-
-### Signal Processing Parameters (signal_processing)
+### GMM parameters (`gene_calling_gmm.yaml`)
 
 ```yaml
-signal_processing:
-  snr: 8                                   # Signal-to-noise ratio threshold
-  neighborhood_size: 10                    # Neighborhood size for SNR calculation
-  kernel_size: 5                           # Kernel size for signal processing
-  min_distance: 2                          # Minimum distance between spots
+classification:
+  method: "gmm"
+  gmm:
+    covariance_type: "diag"     # full | tied | diag | spherical
+    use_4d_ratios_only: true
+    max_iter: 100
+    tol: 1e-3
+    random_state: 42
+    initialization:
+      method: "kmeans"
+      n_init: 10
 ```
 
-**Parameter Description**:
-- `snr`: Signal-to-noise ratio threshold for spot filtering
-- `neighborhood_size`: Size of neighborhood for SNR calculation
-- `kernel_size`: Kernel size for signal processing operations
-- `min_distance`: Minimum distance between detected spots
+See `gene_calling_base.yaml` for the full set of feature-extraction, evaluation, and visualization options.
 
-### Channel Mapping (channel_mapping)
-
-```yaml
-channel_mapping:
-  cy5: 'R'                                 # Map cy5 to R channel
-  TxRed: 'Ye'                              # Map TxRed to Ye channel
-  cy3: 'G'                                 # Map cy3 to G channel
-  FAM: 'B'                                 # Map FAM to B channel
-```
-
-**Parameter Description**:
-- Maps original channel names to standardized output channel names
-- Used for consistent naming across different experiments
-
-### Channel Transformation Matrix (channel_transformation_matrix)
-
-```yaml
-channel_transformation_matrix:
-  R: [1.0, 0.0, 0.0, 0.0]                 # R_corrected = R_raw * 1.0
-  Ye: [0.0, 1.0, 0.0, 0.0]                # Ye_corrected = Ye_raw * 1.0
-  G: [0.0, 0.0, 2.5, 0.0]                 # G_corrected = G_raw * 2.5
-  B: [0.0, 0.0, -0.25, 0.75]              # B_corrected = G_raw * (-0.25) + B_raw * 0.75
-```
-
-**Parameter Description**:
-- Transformation matrix for scaling factors and crosstalk elimination
-- Format: [R_corrected, Ye_corrected, G_corrected, B_corrected] = matrix × [R_raw, Ye_raw, G_raw, B_raw]
-- Matrix rows: [R, Ye, G, B] correspond to output channels
-- Matrix columns: [R, Ye, G, B] correspond to input channels
-
-
-## 2. Gene Calling Configuration
-
-*This section will be implemented in future versions.*
-
-### Planned Configuration Files
-- `configs/gene_calling.yaml`: Gene calling parameters
-- `configs/gmm.yaml`: Gaussian Mixture Model parameters
-- `configs/manual_thresholds.yaml`: Manual threshold settings
-
-### Planned Parameters
-- GMM clustering parameters
-- Manual threshold settings
-- Quality filtering criteria
-- Barcode mapping rules
+---
 
 ## 3. Cell Segmentation Configuration
 
-*This section will be implemented in future versions.*
+Cell segmentation has **no YAML file**. Parameters are defined by the `SegmentationConfig` class in `prism/cell_segmentation/segmentation_config.py`, and the common ones are exposed as `scripts/segment_dapi.py` command-line flags:
 
-### Planned Configuration Files
-- `configs/cell_segmentation.yaml`: Cell segmentation parameters
-- `configs/stardist.yaml`: StarDist model parameters
-- `configs/watershed.yaml`: Watershed algorithm parameters
+```bash
+python scripts/segment_dapi.py <RUN_ID> \
+    --base-dir /path/to/processed \
+    --nucleus-image cyc_1_DAPI.tif \
+    --method auto \           # watershed | stardist | auto
+    --dimension auto          # 2d | 3d | auto
+```
 
-### Planned Parameters
-- Segmentation method selection
-- StarDist model configuration
-- Watershed parameters
-- Post-processing settings
+`SegmentationConfig` holds `watershed_params`, `stardist_2d_params`, `stardist_3d_params`, and `general_params`. To change advanced parameters (block size, minimum cell size, StarDist model name, etc.), edit the class or construct it in your own script.
 
-## 4. Analysis Configuration
-
-*This section will be implemented in future versions.*
-
-### Planned Configuration Files
-- `configs/cell_typing.yaml`: Cell typing parameters
-- `configs/spatial_analysis.yaml`: Spatial analysis parameters
-- `configs/visualization.yaml`: Visualization settings
-
-### Planned Parameters
-- Cell typing algorithms
-- Spatial analysis methods
-- Visualization preferences
-- Output format settings
+---
 
 ## Configuration Usage
 
-### Loading Configuration
+The gene-calling pipeline loads and merges modular configs for you:
 
 ```python
-from spot_detection import load_config
+from prism.gene_calling.pipeline import SignalClassificationPipeline
 
-# Load default configuration
-config = load_config()
-
-# Load custom configuration
-config = load_config('path/to/custom_config.yaml')
+# Loads gene_calling.yaml, merges its config_modules + overrides
+pipeline = SignalClassificationPipeline(config_path="configs/gene_calling.yaml")
 ```
 
-### Merging Configurations
+The readout script loads `readout.yaml` directly from its `--config-dir` (default `configs/`).
 
-```python
-from spot_detection import merge_configs
-
-# Merge base and override configurations
-merged_config = merge_configs(base_config, override_config)
-```
-
+---
 
 ## Best Practices
 
-### 1. Configuration Management
-- Use version control for configuration files
-- Document parameter changes in changelog
-- Test configuration changes on small datasets first
-
-### 2. Parameter Tuning
-- Start with default parameters
-- Adjust parameters based on data characteristics
-- Validate changes with known datasets
-
-### 3. Performance Optimization
-- Adjust `max_memory` based on available system memory
-- Optimize `overlap` for your data size
-- Use appropriate `kernel_size` for your image resolution
-
-### 4. Quality Control
-- Monitor processing logs for parameter effectiveness
-- Use visualization tools to validate parameter settings
-- Document successful parameter combinations
-
-## Troubleshooting
-
-### Common Issues
-
-#### Memory Errors
-- Reduce `max_memory` parameter
-- Increase `overlap` to reduce block size
-- Process smaller datasets
-
-#### Poor Spot Detection
-- Adjust `local_max_abs_thre_ch` thresholds
-- Modify `tophat_kernel_size`
-- Check `intensity_thre` settings
-
-#### Channel Crosstalk
-- Update `channel_transformation_matrix`
-- Verify `channel_mapping` settings
-- Check fluorophore spectra
-
-### Configuration Validation
-
-The system automatically validates configuration files and provides error messages for:
-- Missing required parameters
-- Invalid parameter values
-- Inconsistent channel mappings
-- Malformed transformation matrices
-
-## Future Development
-
-### Planned Enhancements
-1. **GUI Configuration Editor**: Visual interface for parameter adjustment
-2. **Parameter Optimization**: Automated parameter tuning based on data characteristics
-3. **Configuration Templates**: Pre-configured settings for common experimental setups
-4. **Real-time Validation**: Live parameter validation during editing
-5. **Configuration Sharing**: Export/import configuration profiles
-
-### Contributing
-When adding new configuration parameters:
-1. Update this documentation
-2. Add parameter validation
-3. Include example configurations
-4. Update changelog with new parameters
+- **Version-control your configs** and document parameter changes in the [changelog](changelog.md).
+- **Start from the defaults**, then tune on a small crop before processing a full run.
+- For poor spot detection, adjust `detection_method` / `detection_snr` / `tophat_radius` in `readout.yaml`.
+- For channel crosstalk, re-estimate `transform_matrix` with `scripts/calibrate_channels.py` rather than hand-editing.
+- For memory pressure on large images, reduce `block_size` or `n_workers` in `readout.yaml`.

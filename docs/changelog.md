@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation overhaul
+- **Fixed** broken doc cross-links (hyphenated filenames in `README.md`), removed dead links (`api-reference.md`, `tutorial.md`, `PRISM_gene_calling`), and corrected the pipeline flowchart — Spot Detection / Readout is now inside the PRISM stage and the diagram is drawn left-to-right.
+- **Changed** all docs to be relative to the PRISM-Code repository root; rewrote `installation.md` in English with no machine-specific environments or hard-coded paths; rewrote `configuration.md` to document the real `readout.yaml` and modular `gene_calling*.yaml` configs; aligned `detailed-usage.md` / `quick-start.md` with the current scripts (`readout.py`, `gene_calling.py`, `segment_dapi.py`) and the spotiflow detector; output filenames in `data-architecture.md` now match the scripts (`position.csv`, `intensity.csv`, `mapping.csv`, `dapi_centroids.csv`). `spatial_img_core` is now described as a not-yet-public companion package (contact huanglab111@gmail.com).
+- **Removed** `docs/lazy-imports-optimization.md` and `docs/memmap-optimization.md` (legacy `spot_detection` framework) and `docs/postcode-usage.md` (PoSTcode demoted to an experimental, opt-in gene-calling method).
+
 ### Removed
-- `prism.image_process` subpackage and `scripts/image_process.py`. Image processing (focal stacking, illumination correction, registration, stitching, AIRLOCALIZE) has been split out into the sibling package `spatial_img_core` (`Huanglab/spatial_img_core/`). PRISM now starts from stitched images only.
+- `prism.image_process` subpackage and `scripts/image_process.py`. Image processing (focal stacking, illumination correction, registration, stitching, AIRLOCALIZE) has been split out into the companion package `spatial_img_core` (not yet public). PRISM now starts from stitched images only.
 - `SimpleITK` dependency (only `image_process/register_sitk.py` consumed it).
 - Six image-processing notebooks were moved out of `code/notebooks/` to `spatial_img_core/notebooks/`: `image_process_3D`, `density_im_generate_2D`, `density_im_generate_3D`, `cell_segment_confocal_3D`, `dapi_prediction_confocal_3D`, `convex_hull_projection_confocal_3D`.
 

@@ -1,12 +1,12 @@
 # Signal Classification Framework
 
-A flexible and extensible framework for classifying signal points based on multi-channel intensity values. This framework is designed specifically for PRISM (Probe-based Imaging for Sequential Multiplexing) data analysis.
+A flexible and extensible framework for classifying signal points based on multi-channel intensity values. This framework is designed specifically for PRISM (Profiling of RNA In-situ through Single-round iMaging) data analysis.
 
 ## Features
 
 - **Multi-channel signal classification**: Handles 4-channel intensity data (ch1-ch4)
 - **Flexible preprocessing**: Crosstalk elimination, intensity scaling, FRET adjustments
-- **Multiple classification methods**: Currently supports GMM, easily extensible
+- **Multiple classification methods**: GMM and codebook-GMM (default); PoSTcode available as an experimental option; easily extensible
 - **Layer-based classification**: Supports G-layer stratification for better clustering
 - **Comprehensive evaluation**: Multiple metrics and visualizations
 - **Configurable pipeline**: YAML-based configuration system
@@ -51,10 +51,10 @@ The framework is designed around the following signal encoding scheme:
 ### Basic Usage
 
 ```python
-from signal_classification import SignalClassificationPipeline
+from prism.gene_calling.pipeline import SignalClassificationPipeline
 
 # Initialize pipeline with configuration
-pipeline = SignalClassificationPipeline(config_path='configs/signal_classification.yaml')
+pipeline = SignalClassificationPipeline(config_path='configs/gene_calling.yaml')
 
 # Run complete pipeline
 results = pipeline.run_full_pipeline(
@@ -68,7 +68,7 @@ results = pipeline.run_full_pipeline(
 
 ```python
 # 1. Initialize pipeline
-pipeline = SignalClassificationPipeline(config_path='config.yaml')
+pipeline = SignalClassificationPipeline(config_path='configs/gene_calling.yaml')
 
 # 2. Load data
 data = pipeline.load_data('intensity.csv', 'coordinates.csv')
@@ -175,7 +175,7 @@ The framework provides comprehensive evaluation including:
 
 ## Examples
 
-See `code/scripts/signal_classification_example.py` for a complete working example using your data format.
+See `scripts/gene_calling.py` for a complete runnable example, and the notebooks in `notebooks/` (e.g. `gene_calling_GMM.ipynb`, `readout_gene_calling_2D.ipynb`) for interactive workflows.
 
 ## Integration with PRISM Pipeline
 
