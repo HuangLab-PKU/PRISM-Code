@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "prism"
 version = "0.1.0"
-description = "PRISM post-stitching analysis: spot detection / readout, gene calling (GMM, codebook-GMM, PoSTcode), and DAPI-based cell segmentation. Image acquisition (focal stacking, illumination correction, registration, stitching) lives in the sibling spatial_img_core package. Chang et al., Nature Biotechnology 2025, doi:10.1038/s41587-025-02883-7."
+description = "PRISM post-stitching analysis: spot detection / readout, gene calling (GMM, codebook-GMM, PoSTcode), and DAPI-based cell segmentation. Image acquisition (focal stacking, illumination correction, registration, stitching) lives in the companion spatial_img_core package (available on request). Chang et al., Nature Biotechnology 2025, doi:10.1038/s41587-025-02883-7."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
@@ -20,7 +20,7 @@ classifiers = [
 # Baseline covers intensity readout, the GMM and codebook-GMM gene-calling
 # methods, and DAPI segmentation via the cellpose path. Image-processing
 # primitives (focal stacking, illumination correction, registration, stitching)
-# now live in the sibling spatial_img_core package — install it separately when
+# now live in the companion spatial_img_core package — install it separately when
 # the upstream pipeline is needed. PoSTcode (Bayesian gene calling) and
 # StarDist-based segmentation remain optional extras (heavyweight DL frameworks
 # with conflicting backends).
@@ -48,6 +48,7 @@ dependencies = [
 # StarDist still ships TensorFlow 2.10 wheels and pins numpy<2 on Windows; if
 # you need it, build a separate env (see docs/installation.md).
 [project.optional-dependencies]
+spotiflow = ["spotiflow"]                          # default deep-learning spot detector (readout.py uses device='cuda')
 postcode = ["torch", "pyro-ppl"]
 stardist-tf = ["tensorflow==2.10.1", "stardist"]
 cellpose = ["cellpose"]
