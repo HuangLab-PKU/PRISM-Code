@@ -4,7 +4,7 @@
 
 This document describes the data structure and organization requirements for PRISM processing. Understanding the data architecture is crucial for successful analysis.
 
-> **Note**: directories `focal_stacked/`, `background_corrected/`, `resized/`, `registered/`, `stitched/` are produced by the sibling package `spatial_img_core` (sibling repo) (upstream image processing). PRISM reads from `stitched/` and writes only `readout/`, `segmented/`, `visualization/`.
+> **Note**: directories `focal_stacked/`, `background_corrected/`, `resized/`, `registered/`, `stitched/` are produced by the companion package `spatial_img_core` (upstream image processing; **not yet public** — request access at huanglab111@gmail.com). PRISM reads from `stitched/` and writes only `readout/`, `segmented/`, `visualization/`.
 
 ## Raw Data Structure
 
@@ -83,22 +83,27 @@ Output root
 ### File Contents
 
 #### Stitched Directory
-Contains final stitched images for each channel:
+Contains final stitched images for each channel (plus DAPI):
 - `cyc_1_cy5.tif`
 - `cyc_1_TxRed.tif`
 - `cyc_1_cy3.tif`
 - `cyc_1_FAM.tif`
+- `cyc_1_DAPI.tif`
 
 #### Readout Directory
-Contains spot detection results:
-- `intensity_deduplicated.csv`: Final spot intensities
-- `tmp/intensity_raw.csv`: Raw intensity measurements
-- `tmp/tophat_mean.yaml`: Tophat statistics
+Contains spot-detection, intensity, and gene-calling results:
+- `position.csv`: spot coordinates (`index`, `Y`, `X`) — from `readout.py`
+- `intensity.csv`: per-channel raw intensities (`index` + one column per channel) — from `readout.py`
+- `mapping.csv`: per-spot gene assignments and probabilities — from `gene_calling.py`
+- `intensity_corrected.csv`: unmixed intensities with fluorophore names — from `gene_calling.py`
+- `readout_params.yaml`, `readout.log`: run parameters and log
 
 #### Segmented Directory
-Contains cell segmentation results:
-- `dapi_centroids.csv`: Cell nucleus centroids
-- `expression_matrix.csv`: Cell-by-gene expression matrix
+Contains cell-segmentation results:
+- `dapi_centroids.csv`: nucleus centroids (`Y`, `X`; `Z` for 3D) — from `segment_dapi.py`
+- `*_labels.tif`: nucleus label image — from `segment_dapi.py`
+
+The cell-by-gene **expression matrix** (assigning RNA spots to nearest nuclei) is built downstream in `notebooks/cell_typing_and_analysis.ipynb`, not by `segment_dapi.py`.
 
 ## Configuration Variables
 
@@ -142,9 +147,11 @@ visual_dir = src_dir / 'visualization'      # figures
 ## Data Flow
 
 ### Processing Pipeline
-1. **Raw Images → `stitched/`** — handled upstream by `spatial_img_core` (sibling repo) (focal stacking → illumination correction → resize → registration → stitching).
-2. **Stitched Images** → `readout/` — PRISM `scripts/readout.py`.
-3. **Readout Results** → `segmented/` — PRISM `scripts/segment_dapi.py`.
+1. **Raw Images → `stitched/`** — handled upstream by `spatial_img_core` (companion package, not yet public): focal stacking → illumination correction → resize → registration → stitching.
+2. **Stitched Images → `readout/position.csv` + `intensity.csv`** — `scripts/readout.py`.
+3. **`intensity.csv` → `readout/mapping.csv`** — `scripts/gene_calling.py`.
+4. **DAPI → `segmented/dapi_centroids.csv`** — `scripts/segment_dapi.py`.
+5. **`mapping.csv` + `dapi_centroids.csv` → expression matrix** — `notebooks/cell_typing_and_analysis.ipynb`.
 
 ### File Dependencies
 - Spot detection requires stitched images

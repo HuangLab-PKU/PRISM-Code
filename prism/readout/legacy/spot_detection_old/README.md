@@ -1,5 +1,7 @@
 # Data Preparation for Spot Detection Training
 
+> **LEGACY (archived).** This describes the old StarDist-trained spot-detection workflow (`train_spot_detector.py` → `multi_channel_readout_dp.py`), which is no longer maintained. The current readout uses Spotiflow via `scripts/readout.py` — see [docs/detailed-usage.md](../../../../docs/detailed-usage.md). The text below is kept only for reading older notebooks and archives.
+
 This guide explains how to prepare your data for training the spot detection model. The model is based on StarDist, which requires image and mask pairs for training.
 
 ## 1. Data Structure

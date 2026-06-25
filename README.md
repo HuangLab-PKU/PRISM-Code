@@ -4,54 +4,53 @@ PRISM (**P**rofiling of **R**NA **I**n-situ through **S**ingle-round i**M**aging
 
 For more information, please read the article: 
 - [Nature Biotechnology 2025.10.30](https://doi.org/10.1038/s41587-025-02883-7)
-- [BioArxiv 2024.6.29](https://doi.org/10.1101/2024.06.29.601330).
+- [bioRxiv 2024.6.29](https://doi.org/10.1101/2024.06.29.601330).
 
-This repository provides the **post-stitching** computational pipeline for PRISM: spot detection, gene calling, and cell segmentation on stitched PRISM images (2D and 3D). Image acquisition — focal stacking, illumination correction, registration, stitching — is handled by the sibling package `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`). The codebase is modular and configurable for different experimental setups and tissue types.
+This repository provides the **post-stitching** computational pipeline for PRISM: spot detection, gene calling, and cell segmentation on stitched PRISM images (2D and 3D). Image acquisition — focal stacking, illumination correction, registration, stitching — is handled by the companion package `spatial_img_core` (**not yet public**; request access at huanglab111@gmail.com). The codebase is modular and configurable for different experimental setups and tissue types.
 
 ## Documentation
 
 For detailed documentation, please refer to the [docs](docs/) directory:
 
-- **[Quick Start](docs/quick_start.md)** - Get started quickly
+- **[Quick Start](docs/quick-start.md)** - Get started quickly
 - **[Installation Guide](docs/installation.md)** - Complete installation instructions
-- **[Detailed Usage Guide](docs/detailed_usage.md)** - Comprehensive workflow documentation
+- **[Detailed Usage Guide](docs/detailed-usage.md)** - Comprehensive workflow documentation
 - **[Configuration Guide](docs/configuration.md)** - Parameter configuration
-- **[Data Architecture](docs/data_architecture.md)** - Data structure requirements
+- **[Data Architecture](docs/data-architecture.md)** - Data structure requirements
 - **[Changelog](docs/changelog.md)** - Project change history
 
 ## Quick Start
 
-For detailed setup and usage instructions, see the [Quick Start Guide](docs/quick_start.md).
+For detailed setup and usage instructions, see the [Quick Start Guide](docs/quick-start.md).
 
 **Basic Setup:**
 ```bash
-git clone --depth 1 https://github.com/HuangLab-PKU/PRISM
-cd PRISM/code
+git clone https://github.com/HuangLab-PKU/PRISM-Code
+cd PRISM-Code
 pip install -e .
 ```
 
 **Prerequisites:**
 - Python 3.10+
 - (Optional) GPU for StarDist segmentation or PoSTcode gene calling — see [installation guide](docs/installation.md)
-- (Optional) `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`) installed alongside if you need to go from raw images to stitched output
+- (Optional) `spatial_img_core` for the upstream raw-image → stitched-image steps. It is **not yet public**; request access from the authors at **huanglab111@gmail.com**.
 
 ## Complete Workflow Overview
 
-The PRISM code consists of the following post-stitching components: **readout**, **gene_calling**, **cell_segmentation**, **analysis_cell_typing** and **analysis_subcellular**. Upstream image processing (probe design → experiment → raw images → stitched images) is handled by the [`probe_designer`](https://github.com/tangmc0210/probe_designer) and `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`) packages.
+The PRISM code consists of the following post-stitching components: **readout**, **gene_calling**, **cell_segmentation**, and downstream **analysis** (cell typing, subcellular). Upstream steps (probe design → experiment → raw images → stitched images) are handled by the [`probe_designer`](https://github.com/tangmc0210/probe_designer) and `spatial_img_core` packages. `probe_designer` is public; `spatial_img_core` is **not yet public** — request access at **huanglab111@gmail.com**.
 
 ```mermaid
-graph TD
+graph LR
     A["Probe Design (probe_designer)"] --> B["Experiment"];
     B --> C["Raw Images (2D / 3D)"];
 
-    subgraph "Upstream: spatial_img_core"
+    subgraph "Upstream: spatial_img_core (not yet public)"
         C --> D["Stitched Images"];
     end
 
-    D --> E("Spot Detection / Readout");
-    E --> F("Gene Calling");
-
     subgraph "PRISM (this repo)"
+        D --> E("Spot Detection / Readout");
+        E --> F("Gene Calling");
         F --> G["Cell Segmentation"];
         G --> H["Analysis"];
     end
@@ -72,9 +71,9 @@ We also provide **HCC2D** unstitched raw images on [PKU NetDisk](https://disk.pk
 
 ## Additional Resources
 
-- For image acquisition (focal stacking, illumination correction, registration, stitching): `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`)
+- For image acquisition (focal stacking, illumination correction, registration, stitching): `spatial_img_core` — not yet public, request access at **huanglab111@gmail.com**
 - For probe design: [probe_designer](https://github.com/tangmc0210/probe_designer)
 - For 3D segmentation: [StarDist](https://github.com/stardist/stardist)
-- For 3D spot detection: [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE) (now invoked through `spatial_img_core`)
+- For 3D spot detection: [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE) (invoked through `spatial_img_core`)
 
 For questions or support, contact us at: **huanglab111@gmail.com**

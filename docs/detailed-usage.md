@@ -1,258 +1,111 @@
 # Detailed Usage Guide
 
-## Data Architecture
+This guide walks through the full PRISM **post-stitching** workflow. PRISM starts from stitched per-channel images; the upstream raw-image → stitched-image steps live in the companion `spatial_img_core` package (**not yet public** — request access at **huanglab111@gmail.com**).
 
-### Raw Data Structure
+All commands run from the repository root after `pip install -e .` (see the [Installation Guide](installation.md)).
 
-```shell
-Raw data root
-├─RUN_ID1
-│  └─cyc1
-│     ├─C001-T0001-cy3-Z000.tif
-│     ├─C001-T0001-cy3-Z001.tif
-│     ├─...
-│     ├─C001-T0004-FAM-Z006.tif
-│     ├─...
-│     └─C001-T0108-TxRed-Z008.tif
-├─RUN_ID2
-├─...
-└─RUN_IDN
+## Data Layout
+
+PRISM reads stitched images from `<RUN_ID>_processed/stitched/` and writes results to `readout/`, `segmented/`, and `visualization/` under the same `<RUN_ID>_processed/` directory. See [Data Architecture](data-architecture.md) for the full directory layout, file-naming conventions, and the upstream directories produced by `spatial_img_core`.
+
+A typical stitched input set (one TIFF per channel):
+
+```
+<RUN_ID>_processed/stitched/
+├─ cyc_1_cy5.tif
+├─ cyc_1_TxRed.tif
+├─ cyc_1_cy3.tif
+├─ cyc_1_FAM.tif
+└─ cyc_1_DAPI.tif
 ```
 
-### Output Data Structure
+## 1. Probe Design (upstream)
 
-```shell
-Output root
-├─RUN_ID1_processed        # auto-created
-│  ├─focal_stacked         # auto-created
-│  ├─background_corrected  # auto-created, deleted after image processing
-│  ├─resized               # auto-created, deleted after image processing
-│  ├─registered            # auto-created
-│  ├─stitched              # auto-created
-│  ├─segmented             # auto-created
-│  └─readout               # auto-created
-├─RUN_ID2_processed        # auto-created
-├─...
-└─RUN_IDN_processed        # auto-created
-```
+Optional and not always necessary — you can design probes manually or contact us for help. To design probes in bulk, see [probe_designer](https://github.com/tangmc0210/probe_designer).
 
-### Directory Descriptions
+## 2. Image Processing (upstream — `spatial_img_core`)
 
-```shell
-# Upstream (populated by spatial_img_core; PRISM only reads from `stitched/`)
-dest_dir = BASE_DIR / f'{RUN_ID}_processed' # processed data root
-aif_dir  = dest_dir / 'focal_stacked'       # spatial_img_core
-sdc_dir  = dest_dir / 'background_corrected'# spatial_img_core (temporary)
-rsz_dir  = dest_dir / 'resized'             # spatial_img_core (temporary)
-rgs_dir  = dest_dir / 'registered'          # spatial_img_core
-stc_dir  = dest_dir / 'stitched'            # spatial_img_core
+PRISM starts from **stitched** images. The full acquisition chain — focal stacking, illumination correction (BaSiCPy / legacy CIDRE), per-cycle / per-channel registration, pcorr_bigstitcher / MIST stitching, and optional 3D AIRLOCALIZE — lives in the companion package `spatial_img_core` (**not yet public** — request access at **huanglab111@gmail.com**).
 
-# PRISM (this repo) — reads stitched/, writes the rest
-src_dir    = BASE_DIR / f'{RUN_ID}_processed'
-stc_dir    = src_dir / 'stitched'           # input to readout
-read_dir   = src_dir / 'readout'            # scripts/readout.py
-seg_dir    = src_dir / 'segmented'          # scripts/segment_dapi.py
-visual_dir = src_dir / 'visualization'      # figures
-```
+PRISM expects one stitched TIFF per channel under `<RUN_ID>_processed/stitched/`, e.g. `cyc_1_cy5.tif`, `cyc_1_TxRed.tif`, `cyc_1_cy3.tif`, `cyc_1_FAM.tif`, `cyc_1_DAPI.tif`.
 
-## Complete PRISM Workflow
+## 3. Spot Detection / Readout
 
-### 1. Probe Design
-
-This step is not always necessary because you can design probes with specific binding sites, barcodes and corresponding fluorophore probes manually or contact us for help. However, if you want to design probes easily or in bulk, see: [probe_designer](https://github.com/tangmc0210/probe_designer).
-
-### 2. Image Processing (upstream — see `spatial_img_core`)
-
-PRISM starts from **stitched** images. The full image-acquisition chain — focal stacking, illumination correction (BaSiCPy / legacy CIDRE), per-cycle / per-channel registration, pcorr_bigstitcher / MIST stitching, optional 3D AIRLOCALIZE — now lives in the sibling package `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`) (`Huanglab/spatial_img_core/`).
-
-Typical usage (after `pip install -e ../../spatial_img_core/core` in the same env):
+`scripts/readout.py` detects RNA spots on each stitched channel and reads out per-channel intensities. It is configured by `configs/readout.yaml` and takes the `RUN_ID` on the command line:
 
 ```bash
-spatial-img-pipeline --help
-# or, in Python / a notebook:
-#   from spatial_img_core.pipeline import run_pipeline
+python scripts/readout.py <RUN_ID>
 ```
 
-Output that PRISM expects: one stitched TIFF per cycle / channel under `<run_id>_processed/stitched/`, e.g. `cyc_1_cy5.tif`, `cyc_1_TxRed.tif`, `cyc_1_cy3.tif`, `cyc_1_FAM.tif`, `cyc_1_DAPI.tif`.
+Edit `configs/readout.yaml` first:
+- `base_dir`: the root that contains `<RUN_ID>_processed/`
+- `channel_files`: the stitched TIFF filenames under `stitched/`
+- `detection_method`: `spotiflow` (default, deep-learning), or the traditional `gaussian_tophat` / `tophat`
+- `detection_snr`, `tophat_radius`, `search_radius`, `dedup_threshold`, `block_size`, `block_overlap`, `n_workers`
 
-### 3. Spot Detection
+See the [Configuration Guide](configuration.md) for the full parameter reference.
 
-#### 2D Spot Detection
+**Outputs** (under `<RUN_ID>_processed/readout/`):
+- `position.csv`: `index`, `Y`, `X`
+- `intensity.csv`: `index` + one raw-intensity column per channel (original channel names)
+- `readout_params.yaml`, `readout.log`
 
-##### Feature-based Spot Detection
+> Readout does **not** apply scaling, renaming, or crosstalk correction — those are handled in the gene-calling step.
 
-Edit the directory in the Python file `scripts/multi_channel_readout.py` accordingly, and run the code:
+### 3D Spot Detection
+
+For confocal / light-sheet 3D stacks, we recommend [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE) for 3D spot extraction (it has a well-designed UI for parameter tuning). The Python wrapper and MATLAB tree now live in the companion `spatial_img_core` package — invoke them from there. Inputs come from `<RUN_ID>_processed/stitched/`, outputs go to `<RUN_ID>_processed/readout/`. Decode and call genes with `notebooks/readout_gene_calling_3D.ipynb`.
+
+## 4. Gene Calling
+
+`scripts/gene_calling.py` classifies each spot's intensity vector into a gene (or background). Set `BASE_DIR`, `RUN_ID`, and the config path at the top of the script, then run:
 
 ```bash
-python scripts/multi_channel_readout.py
+python scripts/gene_calling.py
 ```
 
-**Remark**: This step requires stitched big images generated in the previous step. Signal spots and their intensity can be extracted using `scripts/multi_channel_readout.py`. It will generate two CSV files named `tmp/intensity_all.csv` and `intensity_all_deduplicated.csv` in the directory `RUN_IDx_processed/readout/` and copy the .py file to the readout path as well.
+The classification method is selected by `classification.method` in the config:
+- `gmm` / `codebook_gmm` — Gaussian Mixture Model decoding (**default**)
+- `postcode` — probabilistic decoding (**experimental**, opt-in; requires the vendored PoSTcode package, see the [Installation Guide](installation.md))
 
-##### Deep Learning Based Spot Detection (Recommended)
+**Outputs** (under `<RUN_ID>_processed/readout/`):
+- `mapping.csv`: per-spot gene assignment with top-1 / top-2 labels and probabilities
+- `intensity_corrected.csv`: intensities after the 4×4 unmixing matrix (crosstalk / scaling / FRET), with fluorophore names
 
-This updated workflow uses a StarDist deep learning model to detect spots from multi-channel images, providing higher accuracy and avoiding the issue of duplicate detections for spots that appear in multiple channels.
+Channel correction (crosstalk, scaling, FRET) is applied here via the unmixing matrix in the config — use `scripts/calibrate_channels.py` to estimate the matrix from calibration experiments.
 
-###### Step 1: Prepare Training Data
+### Interactive gene calling
 
-The most critical step is to create high-quality training data. This involves annotating your images to teach the model what a "spot" looks like.
+Because the color-space distribution varies between tissue types and cameras, gene calling often benefits from interactive inspection. Use the notebooks in `notebooks/`:
+- `gene_calling_GMM.ipynb` / `readout_gene_calling_2D.ipynb` — GMM workflow (2D)
+- `gene_calling_manual_2D.ipynb` — set thresholds per gene manually
+- `gene_calling_mask_selection.ipynb` — mask-based selection
+- `readout_gene_calling_3D.ipynb` / `gene_calling_manual_3D.ipynb` — 3D
 
-1. **Understand the Data Structure**:
-   - Your training images should be placed in `data/training/images/`. These must be **multi-channel TIFF files**, with the shape `(channels, height, width)`.
-   - Your corresponding masks go in `data/training/masks/`. These must be **single-channel TIFF files** where each individual spot is "painted" with a unique integer ID (1, 2, 3, ...). The background must be 0.
+## 5. Cell Segmentation
 
-2. **Annotate Your Images**:
-   - We highly recommend using **Fiji/ImageJ** with the **Labkit** plugin for this task.
-   - Load your multi-channel image into Fiji, then open it in Labkit.
-   - On a single label layer, carefully paint over every unique spot you see across all channels. Labkit will automatically assign a unique ID to each disconnected spot you paint.
-   - For spots that are very close, ensure their masks do not touch. Use the eraser tool or the Watershed method to create a 1-pixel separation.
-   - Export the final annotation from Labkit using `Save > Export Labeling as Tiff...` and save it as an `Unsigned 16-bit` TIFF.
-   - For more detailed instructions, see the guide in `src/spot_detection/README.md`.
-
-###### Step 2: Train the Model
-
-Once you have prepared at least 10-20 annotated image/mask pairs, you can train the model.
-
-- Run the training script from your terminal:
-  ```bash
-  python scripts/train_spot_detector.py --use-gpu
-  ```
-- This will use the data in `data/training/`, train a new model, and save it to the `models/` directory. You can adjust training parameters like epochs and patch size directly in the command line. Run `python scripts/train_spot_detector.py --help` for more options.
-
-###### Step 3: Run Inference
-
-After the model is trained, you can use it to detect and quantify spots in new, unseen images.
-
-- Run the inference script, providing the path to your images and where to save the output:
-  ```bash
-  python scripts/multi_channel_readout_dp.py \
-      --input-dir /path/to/your/stitched/images \
-      --output-csv /path/to/your/readout/results.csv \
-      --channel-files cyc_1_cy5.tif cyc_1_TxRed.tif cyc_1_cy3.tif cyc_1_FAM.tif \
-      --channels cy5 TxRed cy3 FAM
-  ```
-- This script will:
-  1. Load your trained StarDist model from the `models/` directory.
-  2. Combine your single-channel images into a multi-channel stack.
-  3. Detect all unique spots.
-  4. For each spot, fit a 2D Gaussian to measure its integrated intensity and local background in every channel.
-  5. Save the results to a `.csv` file, with columns like `Y`, `X`, `cy5_intensity`, `cy5_background`, etc.
-
-#### 3D Spot Detection
-
-If your images are captured by confocal, light-sheet or any other 3D microscopy and you have a registered and stitched grayscale 3D image of each channel in TIFF format:
-
-We recommend using [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE) in MATLAB to perform 3D spot extraction because of its well-designed UI for parameter tuning. Both the Python wrapper and the MATLAB tree previously bundled under `prism/image_process/AIRLOCALIZE*` have moved to the sibling `spatial_img_core` (sibling repo at `Huanglab/spatial_img_core/`) package — invoke them from there. Inputs go to `<run>_processed/stitched/`, outputs to `<run>_processed/readout/tmp/`.
-
-After that, intensity decoding and gene calling can be performed using `gene_calling\readout_gene_calling_3d.ipynb`.
-
-### 4. Gene Calling
-
-In this part, we recommend using `gene_calling/gene_calling_GMM.ipynb` when you have `readout/intensity.csv` because spots distribution in color space may differ between tissue types or cameras. For a quick start, you can also use `gene_calling/gene_calling_GMM.py` by editing the directory in the Python file `gene_calling/gene_calling_GMM.py` and running the code:
+`scripts/segment_dapi.py` segments nuclei from the DAPI channel:
 
 ```bash
-python scripts/gene_calling_GMM.py
+python scripts/segment_dapi.py <RUN_ID>
 ```
 
-The result should be at `read_dir/mapped_genes.csv` by default.
+Options: `--base-dir`, `--nucleus-image` (default `cyc_1_DAPI.tif`), `--method` (`watershed` / `stardist` / `auto`), `--dimension` (`2d` / `3d` / `auto`).
 
-**Remark**:
+**Outputs** (under `<RUN_ID>_processed/segmented/`):
+- `dapi_centroids.csv`: nucleus centroids (`Y`, `X`; `Z` for 3D)
+- a label image `*_labels.tif`
 
-- Gene calling for PRISM is performed by a Gaussian Mixture Model, manual selection by masks, and evaluation of the confidence of each spot. It's expected to run on a GUI because some steps need human knowledge of the experiments, such as how the chemical environment or FRET would affect the fluorophores.
+> 3D segmentation uses a trained StarDist network and needs the StarDist environment — see [StarDist](https://github.com/stardist/stardist) and the [Installation Guide](installation.md).
 
-- You can also use `gene_calling/PRISM_gene_calling_GMM.ipynb` for customization or use `gene_calling/gene_calling_manual.ipynb` to set the threshold for each gene manually.
+## 6. Cell-by-Gene Matrix & Cell Typing
 
-- 3D gene calling in our article was performed in `gene_calling\PRISM3D_intensity_readout_and_gene_calling.ipynb`.
-
-For more details, see [PRISM_gene_calling](https://github.com/tangmc0210/PRISM_gene_calling).
-
-### 5. Cell Segmentation
-
-#### DAPI Centroids
-
-Edit the directory in the Python file `cell_segmentation/segment2D.py` or `cell_segmentation/segment3D.py` and run:
-
-```bash
-python scripts/segment2D.py
-```
-
-or
-
-```bash
-python scripts/segment3D.py
-```
-
-This code will segment cell nuclei according to the DAPI channel. A CSV file containing the coordinates of nucleus centroids will be generated in `seg_dir` as `centroids_all.csv`.
-
-#### Expression Matrix
-
-Edit the directory in the Python file `gene_calling/expression_matrix.py`, and run:
-
-```bash
-python scripts/expression_matrix2D.py
-```
-
-or
-
-```bash
-python scripts/expression_matrix3D.py
-```
-
-The expression matrix will be generated in `seg_dir` as `expression_matrix.csv`.
-
-**Remarks**:
-
-- `Segmentation3D.py` needs a StarDist environment as it uses a trained network to predict the shape and centroid of nuclei in 3D. For more information, see: [StarDist](https://github.com/stardist/stardist).
-- Our strategy to generate expression matrices generally assigns RNA to its nearest centroid of cell nucleus (predicted by DAPI), so it requires `dapi_centroids.csv` of cell nuclei and `mapped_genes.csv` generated in previous steps. If you have other strategies that perform better on your data, you can replace this step with them.
-
-## Refactored Multi-Channel Readout Script
-
-### Overview
-
-The refactored multi-channel readout script modularizes the original single-file code, improving maintainability and reusability. Main improvements include:
-
-1. **Modular Design**: Moved spot detection related functions to `src/spot_detection` module
-2. **Configuration Management**: Use YAML configuration files to manage all parameters
-3. **Transformation Matrix**: Integrated scaling factors and crosstalk elimination into unified transformation matrix
-4. **Class Encapsulation**: Use `MultiChannelProcessor` class to encapsulate processing logic
-
-### Usage Methods
-
-#### 1. Single File Processing
-
-```python
-from scripts.multi_channel_readout_refactored import MultiChannelProcessor
-
-# Use default configuration
-processor = MultiChannelProcessor(run_id='20250717_FFPE_OSCC')
-intensity = processor.process_single_run()
-
-# Use custom configuration
-processor = MultiChannelProcessor(
-    config_path='path/to/custom_config.yaml',
-    run_id='20250717_FFPE_OSCC',
-    prism_panel='PRISM30'
-)
-intensity = processor.process_single_run()
-```
-
-#### 2. Command Line Usage
-
-```bash
-# Single file processing
-python scripts/multi_channel_readout_refactored.py
-```
-
-## Important Notes
-
-**⚠️ Important:** Many paths or directories need editing in files mentioned below.
-
-We provide Jupyter notebooks to demonstrate how to use PRISM for analysis. The notebooks are located in the `notebooks` folder.
+The expression matrix assigns each RNA spot (`mapping.csv`) to its nearest nucleus (`dapi_centroids.csv`). This step, together with cell typing and downstream spatial analysis, is done in `notebooks/cell_typing_and_analysis.ipynb` (and `notebooks/co-expression_analysis.ipynb` for co-expression). If you have a better assignment strategy for your data, you can substitute it here.
 
 ## Additional Resources
 
 - For probe design: [probe_designer](https://github.com/tangmc0210/probe_designer)
 - For 3D segmentation: [StarDist](https://github.com/stardist/stardist)
-- For 3D spot detection: [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE)
+- For 3D spot detection: [AIRLOCALIZE](https://github.com/timotheelionnet/AIRLOCALIZE) (invoked through `spatial_img_core`)
 
 For questions or support, contact us at: **huanglab111@gmail.com**
