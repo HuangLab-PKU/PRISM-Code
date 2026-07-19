@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Posterior-confidence QC for gene calling.** The GMM decoder's per-spot top-1 posterior
+  is now surfaced as a decode-confidence score. `ClassificationResult.to_dataframe(...,
+  confidence_threshold=t)` adds an `is_confident` column; `SignalClassificationPipeline`
+  writes it to `predictions.csv` and generates a confident-only ColorSpace via the new
+  `ClassificationEvaluator.visualize_confident_colorspace(...)`, which drops ambiguous
+  between-codeword spots for a cleaner, higher-specificity view. Configurable through
+  `classification.confidence_threshold` (default `0.8`; set to `null` to disable). New
+  `prism.gene_calling.confidence` module (`top1_confidence`, `confident_mask`) with unit
+  tests in `tests/test_confidence.py`.
+
 ### Documentation overhaul
 - **Fixed** broken doc cross-links (hyphenated filenames in `README.md`), removed dead links (`api-reference.md`, `tutorial.md`, `PRISM_gene_calling`), and corrected the pipeline flowchart — Spot Detection / Readout is now inside the PRISM stage and the diagram is drawn left-to-right.
 - **Changed** all docs to be relative to the PRISM-Code repository root; rewrote `installation.md` in English with no machine-specific environments or hard-coded paths; rewrote `configuration.md` to document the real `readout.yaml` and modular `gene_calling*.yaml` configs; aligned `detailed-usage.md` / `quick-start.md` with the current scripts (`readout.py`, `gene_calling.py`, `segment_dapi.py`) and the spotiflow detector; output filenames in `data-architecture.md` now match the scripts (`position.csv`, `intensity.csv`, `mapping.csv`, `dapi_centroids.csv`). `spatial_img_core` is now described as a not-yet-public companion package (contact huanglab111@gmail.com).

@@ -95,6 +95,10 @@ class SignalClassificationPipeline:
             },
             "classification": {
                 "method": "gmm",
+                # Posterior-confidence QC: spots with top-1 posterior below this are flagged
+                # low-confidence (is_confident=False) and excluded from the confident-only
+                # ColorSpace. Set to None to disable the QC column/figure.
+                "confidence_threshold": 0.8,
                 "gmm": {
                     "covariance_type": "diag",
                     "max_iter": 100,
@@ -379,6 +383,18 @@ class SignalClassificationPipeline:
             )
             evaluation["channel_space_plot"] = channel_space_path
 
+            # Confident-only colourspace (QC): keep only spots with top-1 posterior
+            # >= confidence_threshold, for a cleaner, higher-specificity view.
+            confidence_threshold = self.config.get("classification", {}).get(
+                "confidence_threshold"
+            )
+            if confidence_threshold is not None:
+                confident_path = self.evaluator.visualize_confident_colorspace(
+                    result, data, output_dir, confidence_threshold, g_layer_num, self.method
+                )
+                if confident_path is not None:
+                    evaluation["confident_colorspace_plot"] = confident_path
+
             # Generate report
             report_path = self.evaluator.generate_report(
                 evaluation, output_dir / "evaluation_report.md"
@@ -434,8 +450,13 @@ class SignalClassificationPipeline:
             output_dir = Path(output_dir)
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            # Save predictions
-            result_df = result.to_dataframe(data)
+            # Save predictions (with the is_confident QC column when a threshold is set)
+            confidence_threshold = self.config.get("classification", {}).get(
+                "confidence_threshold"
+            )
+            result_df = result.to_dataframe(
+                data, confidence_threshold=confidence_threshold
+            )
             result_df.to_csv(output_dir / "predictions.csv", index=False)
 
             # Save configuration

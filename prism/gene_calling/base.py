@@ -19,7 +19,11 @@ class ClassificationResult:
     model_params: Optional[Dict[str, Any]] = None
     metadata: Optional[Dict[str, Any]] = None
 
-    def to_dataframe(self, original_data: pd.DataFrame) -> pd.DataFrame:
+    def to_dataframe(
+        self,
+        original_data: pd.DataFrame,
+        confidence_threshold: Optional[float] = None,
+    ) -> pd.DataFrame:
         """Convert results to DataFrame with soft classification output.
 
         Columns produced:
@@ -31,6 +35,13 @@ class ClassificationResult:
           available in ``self.metadata``).
         * ``predicted_label``, ``prediction_confidence`` -- kept for backward
           compatibility with old GMMMethod consumers.
+        * ``is_confident`` -- only when ``confidence_threshold`` is given: True
+          where ``prediction_confidence >= confidence_threshold``. Spots without
+          probabilities are treated as not confident.
+
+        Args:
+            original_data: unused positionally, kept for API compatibility.
+            confidence_threshold: if set, add the ``is_confident`` QC column.
         """
         result_df = pd.DataFrame()
 
@@ -53,6 +64,11 @@ class ClassificationResult:
             # Backward-compatible columns
             result_df["predicted_label"] = top2_idx[:, 0]
             result_df["prediction_confidence"] = result_df["top1_prob"]
+
+            if confidence_threshold is not None:
+                result_df["is_confident"] = (
+                    result_df["prediction_confidence"] >= confidence_threshold
+                )
         else:
             result_df["top1_label"] = self.labels
             result_df["top1_prob"] = np.nan
@@ -60,6 +76,10 @@ class ClassificationResult:
             result_df["top2_prob"] = np.nan
             result_df["predicted_label"] = self.labels
             result_df["prediction_confidence"] = np.nan
+
+            if confidence_threshold is not None:
+                # No probabilities -> confidence undefined -> treat as not confident
+                result_df["is_confident"] = False
 
         return result_df
 

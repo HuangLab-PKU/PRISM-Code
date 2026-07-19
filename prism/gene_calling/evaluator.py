@@ -653,6 +653,84 @@ class ClassificationEvaluator:
         
         return output_path
     
+    def visualize_confident_colorspace(
+        self,
+        result: ClassificationResult,
+        data: pd.DataFrame,
+        output_dir: Path,
+        confidence_threshold: float,
+        g_layer_num: int = 2,
+        method=None,
+        output_name: str = "ColorSpace_confident.png",
+    ) -> Optional[Path]:
+        """Confident-only colourspace visualization.
+
+        Per-G-layer scatter of only the spots whose top-1 GMM posterior is
+        ``>= confidence_threshold``, coloured by predicted label. Dropping the
+        ambiguous between-codeword spots yields a cleaner, higher-specificity
+        colourspace than the hard-assigned full view. Returns ``None`` when no
+        per-spot probabilities are available.
+        """
+        from .confidence import top1_confidence
+
+        conf = top1_confidence(result.probabilities)
+        if conf is None:
+            logger.warning(
+                "No per-spot probabilities available; skipping confident colourspace."
+            )
+            return None
+
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        processed = (
+            method.preprocess(data)
+            if method is not None
+            else self._preprocess_for_visualization(data)
+        )
+        labels = np.asarray(result.labels)
+        g_layer = np.asarray(
+            processed["G_layer"]
+            if "G_layer" in processed.columns
+            else np.zeros(len(processed), dtype=int)
+        )
+        keep = (conf >= confidence_threshold) & (labels != -1)
+
+        uniq = np.unique(labels[labels != -1])
+        colors = plt.cm.tab20(np.linspace(0, 1, max(len(uniq), 1)))
+        lab2col = {lab: colors[i] for i, lab in enumerate(uniq)}
+        xrange, yrange = [-0.8, 0.8], [-0.6, 0.8]
+
+        n_layers = max(g_layer_num, int(g_layer.max()) + 1 if len(g_layer) else 1)
+        cd1 = processed["color_dim_1"].to_numpy()
+        cd2 = processed["color_dim_2"].to_numpy()
+        fig, ax = plt.subplots(1, n_layers, figsize=(5.5 * n_layers, 5), squeeze=False)
+        for layer in range(n_layers):
+            a = ax[0, layer]
+            m = keep & (g_layer == layer)
+            if m.any():
+                a.scatter(
+                    cd1[m], cd2[m], s=0.3, alpha=0.3,
+                    c=[lab2col.get(lab, (0.5, 0.5, 0.5, 1.0)) for lab in labels[m]],
+                )
+            a.set_xlim(xrange)
+            a.set_ylim(yrange)
+            a.set_xticks([])
+            a.set_yticks([])
+            a.set_title(
+                f"G-layer {layer}  conf>={confidence_threshold}  (n={int(m.sum()):,})",
+                fontsize=9,
+            )
+        n_lab = int((labels != -1).sum())
+        frac = 100.0 * int(keep.sum()) / max(n_lab, 1)
+        fig.suptitle(f"Confident-only colourspace ({frac:.1f}% of labelled spots kept)")
+        fig.tight_layout()
+        out_path = output_dir / output_name
+        fig.savefig(out_path, dpi=200)
+        plt.close(fig)
+        logger.info(f"Saved confident-only colourspace to {out_path} (kept {frac:.1f}%)")
+        return out_path
+
     def _plot_confidence_distribution(
         self, result: ClassificationResult, output_path: Path
     ) -> Path:
