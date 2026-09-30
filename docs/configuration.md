@@ -64,6 +64,8 @@ n_workers: 4
 - `detection_method`: `spotiflow` is the deep-learning default (the `readout.py` spotiflow path uses `device='cuda'`, so it needs a GPU). `gaussian_tophat` / `tophat` are CPU-friendly traditional fallbacks that use `detection_snr` and `tophat_radius`.
 - `block_size` / `block_overlap`: large stitched images are processed block-by-block; overlap avoids edge effects. `n_workers` sets process-pool parallelism.
 
+**Stitched layouts**: `readout.py` reads `stitched/` in any of three layouts and picks the one present: a single `mosaic.ome.tif` (finalized output of current stitching), a `mosaic.ome.zarr` store (stitching still in progress), or one `cyc_<cycle>_<channel>.tif` per channel (older runs). The channel filenames above are written the same way for all three; on a mosaic, `cyc_1_cy5.tif` selects cycle 1, channel `cy5` inside it, so the name must follow the `cyc_<cycle>_<channel>.tif` pattern. If both a mosaic and per-channel TIFFs are present, the mosaic is read. Mosaics need the `mosaic` extra (`pip install -e ".[mosaic]"`).
+
 ---
 
 ## 2. Gene Calling Configuration (modular)
