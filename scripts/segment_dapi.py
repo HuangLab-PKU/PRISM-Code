@@ -10,6 +10,8 @@ from pathlib import Path
 # After running: pip install -e . (from code/ directory)
 from prism.cell_segmentation.unified_segmentation import UnifiedSegmentation
 from prism.cell_segmentation.segmentation_config import SegmentationConfig
+from prism.readout.mosaic import backend
+from prism.readout.stitched import has_stitched
 
 
 def run_segmentation(base_dir: str, run_id: str, cell_image_name: str = 'cyc_1_DAPI.tif',
@@ -20,7 +22,8 @@ def run_segmentation(base_dir: str, run_id: str, cell_image_name: str = 'cyc_1_D
     Args:
         base_dir: Base directory containing processed data
         run_id: Experiment run ID
-        cell_image_name: Name of the cell image file
+        cell_image_name: Name of the cell image file; for a run stitched into
+            mosaic.ome.tif / mosaic.ome.zarr it selects that channel of the mosaic
         method: Segmentation method ('watershed', 'stardist', 'auto')
         dimension: Image dimension ('2d', '3d', 'auto')
     """
@@ -39,14 +42,14 @@ def run_segmentation(base_dir: str, run_id: str, cell_image_name: str = 'cyc_1_D
     seg_dir = src_dir / 'segmented'
     
     image_path = stc_dir / cell_image_name
-    
-    # Check if image exists
-    if not image_path.exists():
-        print(f"Error: Image not found at {image_path}")
+
+    # Check if image exists (as its own TIFF, or as a channel of the stitched mosaic)
+    if not has_stitched(stc_dir, cell_image_name):
+        print(f"Error: Image not found at {image_path} ({backend(stc_dir)} layout)")
         return False
-    
+
     print(f"Starting segmentation...")
-    print(f"Image: {image_path}")
+    print(f"Image: {image_path} ({backend(stc_dir)} layout)")
     print(f"Method: {method}")
     print(f"Dimension: {dimension}")
     
@@ -88,7 +91,8 @@ def parse_args():
         '--nucleus-image',
         type=str,
         default='cyc_1_DAPI.tif',
-        help='Name of the nucleus image file (default: cyc_1_DAPI.tif)',
+        help='Name of the nucleus image file; on a mosaic run, the channel to read '
+             'from it (default: cyc_1_DAPI.tif)',
     )
     parser.add_argument(
         '--method',

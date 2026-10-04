@@ -7,6 +7,10 @@ This pipeline performs:
 3. Deduplication across all channels
 4. Outputs separate position.csv and intensity.csv files
 
+Stitched input is either one mosaic (stitched/mosaic.ome.tif or mosaic.ome.zarr) or
+legacy per-channel TIFFs (stitched/cyc_1_cy5.tif, ...). Channels are named by their
+per-channel filename in both cases; see prism.readout.stitched.
+
 Note: This pipeline does NOT perform scaling, renaming, or crosstalk correction.
 Those operations should be done in the gene_calling pipeline.
 
@@ -20,7 +24,6 @@ import numpy as np
 import pandas as pd
 import yaml
 from tqdm import tqdm
-import tifffile
 import logging
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -28,6 +31,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 # Import from installed PRISM package
 from prism.readout.spot_detection import get_spot_coordinates
 from prism.readout.intensity_readout import read_intensity_tophat
+from prism.readout.stitched import open_stitched_plane, stitched_plane_shape
 from prism.readout.utils import deduplicate_dataframe, block_starts
 
 
@@ -38,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 # ========== Configuration (set from config file + CLI) ==========
 CHANNELS = []  # channel labels (file stems) for output columns and logging
-CHANNEL_FILES = []  # filenames under stitched dir; path = stc_dir / fname
+CHANNEL_FILES = []  # per-channel filenames (cyc_1_cy5.tif); address into a mosaic too
 BASE_DIR = None
 RUN_ID = None
 src_dir = None
@@ -118,7 +122,7 @@ def main(run_id, stc_dir, read_dir):
     run_id : str
         Run identifier (e.g. 20260201_WXC_ZJX_CRC_patient1_5um_2)
     stc_dir : Path
-        Directory containing stitched images (cyc_1_channel.tif)
+        Stitched directory: mosaic.ome.tif / mosaic.ome.zarr, or cyc_1_<channel>.tif
     read_dir : Path
         Output directory for readout results
     """
@@ -135,21 +139,18 @@ def main(run_id, stc_dir, read_dir):
     logger.info("Stage 1: Spot Detection")
     logger.info("=" * 80)
     
-    # Spot detection: one memmap per channel (open once), read each block from it when needed, then discard block
+    # Spot detection: one lazy handle per channel (open once), read each block from it when needed, then discard block
     all_coordinates = []
     channel_coords_dict = {}
 
-    # Count total detection blocks for progress bar (use TiffFile for shape only)
+    # Count total detection blocks for progress bar (shape only, no pixels read)
     n_detection_total = 0
     for _fname in CHANNEL_FILES:
-        with tifffile.TiffFile(stc_dir / _fname) as _t:
-            _sh = _t.pages[0].shape
-        _h, _w = (_sh[0], _sh[1]) if len(_sh) == 2 else (_sh[1], _sh[2])
+        _h, _w = stitched_plane_shape(stc_dir, _fname)
         n_detection_total += len(block_starts(_h, _w, BLOCK_SIZE, BLOCK_OVERLAP))
 
     def _detection_task_iter():
         for channel, fname in zip(CHANNELS, CHANNEL_FILES):
-            image_path = stc_dir / fname
             if DETECTION_METHOD == 'spotiflow':
                 detection_kwargs = {'prob_thresh': None, 'device': 'cuda'}
             else:
@@ -157,9 +158,7 @@ def main(run_id, stc_dir, read_dir):
                     'snr': DETECTION_SNR.get(channel, 3.0),
                     'tophat_radius': TOPHAT_RADIUS
                 }
-            img = tifffile.memmap(str(image_path))
-            if img.ndim == 3:
-                img = img[0]
+            img = open_stitched_plane(stc_dir, fname)
             h, w = img.shape
             by, bx = BLOCK_SIZE
             for start_y, start_x in block_starts(h, w, BLOCK_SIZE, BLOCK_OVERLAP):
@@ -251,13 +250,10 @@ def main(run_id, stc_dir, read_dir):
             coords_in_block[channel][key] = np.array(idx_list, dtype=np.int64)
     n_intensity_total = sum(1 for ch in CHANNELS for idx in coords_in_block.get(ch, {}).values() if len(idx) > 0)
 
-    # Intensity: one memmap per channel (open once), read each block from it when needed, then discard block
+    # Intensity: one lazy handle per channel (open once), read each block from it when needed, then discard block
     def _intensity_task_iter():
         for channel, fname in zip(CHANNELS, CHANNEL_FILES):
-            image_path = stc_dir / fname
-            img = tifffile.memmap(str(image_path))
-            if img.ndim == 3:
-                img = img[0]
+            img = open_stitched_plane(stc_dir, fname)
             h, w = img.shape
             by, bx = BLOCK_SIZE
             ch_blocks = coords_in_block.get(channel, {})

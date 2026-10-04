@@ -49,6 +49,7 @@ dependencies = [
 # you need it, build a separate env (see docs/installation.md).
 [project.optional-dependencies]
 spotiflow = ["spotiflow"]                          # default deep-learning spot detector (readout.py uses device='cuda')
+mosaic = ["zarr", "imagecodecs"]                   # read stitched/mosaic.ome.tif and mosaic.ome.zarr
 postcode = ["torch", "pyro-ppl"]
 stardist-tf = ["tensorflow==2.10.1", "stardist"]
 cellpose = ["cellpose"]
