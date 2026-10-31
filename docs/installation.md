@@ -41,6 +41,7 @@ pip install -e ".[spotiflow]"
 | Extra | Purpose | Install |
 |---|---|---|
 | `spotiflow` | Default deep-learning spot detector (needs a CUDA GPU) | `pip install -e ".[spotiflow]"` |
+| `mosaic` | Read stitched `mosaic.ome.tif` / `mosaic.ome.zarr` (current stitching output); not needed for per-channel TIFFs | `pip install -e ".[mosaic]"` |
 | `cellpose` | PyTorch-based cell segmentation | `pip install -e ".[cellpose]"` |
 | `postcode` | **Experimental** Bayesian decoding (pyro + PyTorch) | `pip install -e ".[postcode]"` + vendored PoSTcode (below) |
 | `stardist-tf` | StarDist 2D/3D segmentation (TensorFlow 2.10) | separate environment (below) |
@@ -73,6 +74,8 @@ python -c "import tensorflow as tf; print('GPUs:', tf.config.list_physical_devic
 ```
 
 On Windows, TF 2.10 is the last version with native GPU support; GPU StarDist needs matching **CUDA 11.2 / cuDNN 8.1**. Other environments fall back to CPU StarDist (much slower).
+
+To segment a run whose stitched output is `mosaic.ome.tif` / `mosaic.ome.zarr`, install the `mosaic` extra in this environment too (`pip install -e ".[stardist-tf,mosaic]"`); on Python 3.10 it resolves to zarr 2.x, which reads both layouts.
 
 ## 4. Upstream image processing (`spatial_img_core`)
 

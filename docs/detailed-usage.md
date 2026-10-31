@@ -1,6 +1,6 @@
 # Detailed Usage Guide
 
-This guide walks through the full PRISM **post-stitching** workflow. PRISM starts from stitched per-channel images; the upstream raw-image → stitched-image steps live in the companion `spatial_img_core` package (**not yet public** — request access at **huanglab111@gmail.com**).
+This guide walks through the full PRISM **post-stitching** workflow. PRISM starts from stitched images; the upstream raw-image → stitched-image steps live in the companion `spatial_img_core` package (**not yet public** — request access at **huanglab111@gmail.com**).
 
 All commands run from the repository root after `pip install -e .` (see the [Installation Guide](installation.md)).
 
@@ -8,16 +8,24 @@ All commands run from the repository root after `pip install -e .` (see the [Ins
 
 PRISM reads stitched images from `<RUN_ID>_processed/stitched/` and writes results to `readout/`, `segmented/`, and `visualization/` under the same `<RUN_ID>_processed/` directory. See [Data Architecture](data-architecture.md) for the full directory layout, file-naming conventions, and the upstream directories produced by `spatial_img_core`.
 
-A typical stitched input set (one TIFF per channel):
+Stitched input comes in one of three layouts; PRISM reads whichever is present:
 
 ```
 <RUN_ID>_processed/stitched/
-├─ cyc_1_cy5.tif
+└─ mosaic.ome.tif        # current stitching, finalized: one pyramidal OME-TIFF, all channels
+
+<RUN_ID>_processed/stitched/
+└─ mosaic.ome.zarr/      # current stitching, still in progress: OME-Zarr (NGFF 0.4) store
+
+<RUN_ID>_processed/stitched/
+├─ cyc_1_cy5.tif         # older runs: one TIFF per channel
 ├─ cyc_1_TxRed.tif
 ├─ cyc_1_cy3.tif
 ├─ cyc_1_FAM.tif
 └─ cyc_1_DAPI.tif
 ```
+
+Configs and command-line options name channels as `cyc_<cycle>_<channel>.tif` in every layout; on a mosaic that name selects the channel inside it (`cyc_1_DAPI.tif` → cycle 1, channel `DAPI`). The two mosaic layouts need the `mosaic` extra: `pip install -e ".[mosaic]"`.
 
 ## 1. Probe Design (upstream)
 
@@ -27,7 +35,7 @@ Optional and not always necessary — you can design probes manually or contact 
 
 PRISM starts from **stitched** images. The full acquisition chain — focal stacking, illumination correction (BaSiCPy / legacy CIDRE), per-cycle / per-channel registration, pcorr_bigstitcher / MIST stitching, and optional 3D AIRLOCALIZE — lives in the companion package `spatial_img_core` (**not yet public** — request access at **huanglab111@gmail.com**).
 
-PRISM expects one stitched TIFF per channel under `<RUN_ID>_processed/stitched/`, e.g. `cyc_1_cy5.tif`, `cyc_1_TxRed.tif`, `cyc_1_cy3.tif`, `cyc_1_FAM.tif`, `cyc_1_DAPI.tif`.
+PRISM expects its output under `<RUN_ID>_processed/stitched/`: the `mosaic.ome.tif` (or `mosaic.ome.zarr`) current versions write, or one TIFF per channel from older versions (see [Data Layout](#data-layout)).
 
 ## 3. Spot Detection / Readout
 

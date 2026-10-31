@@ -20,8 +20,9 @@ from skimage.filters import threshold_local
 from skimage.morphology import remove_small_objects, disk
 from skimage.feature import peak_local_max
 from skimage.segmentation import watershed
-from tifffile import imread as tiff_imread, imwrite
+from tifffile import imwrite
 
+from prism.readout.stitched import read_stitched
 from .segmentation_config import SegmentationConfig
 
 # Configure TensorFlow for GPU before StarDist/Keras load (must run first)
@@ -55,6 +56,12 @@ except ImportError:
     print("Warning: StarDist not available. Only watershed method can be used.")
 
 
+def _read_image(image_path: Path) -> np.ndarray:
+    """Whole image at ``image_path``, or the same-named channel of a mosaic beside it."""
+    image_path = Path(image_path)
+    return read_stitched(image_path.parent, image_path.name)
+
+
 class UnifiedSegmentation:
     """Unified segmentation class"""
     
@@ -65,7 +72,10 @@ class UnifiedSegmentation:
         
     def detect_image_dimension(self, image_path: Path) -> str:
         """Automatically detect image dimension"""
-        img = tiff_imread(image_path)
+        return self._dimension_of(_read_image(image_path))
+
+    @staticmethod
+    def _dimension_of(img: np.ndarray) -> str:
         if img.ndim == 2:
             return '2d'
         elif img.ndim == 3:
@@ -310,17 +320,23 @@ class UnifiedSegmentation:
         Unified segmentation interface
         
         Args:
-            image_path: Path to input image
+            image_path: Path to input image. A stitched channel path such as
+                stitched/cyc_1_DAPI.tif also resolves inside a stitched mosaic
+                (mosaic.ome.tif / mosaic.ome.zarr) in that directory.
             method: Segmentation method ('watershed', 'stardist', 'auto')
             dimension: Image dimension ('2d', '3d', 'auto')
             output_dir: Output directory
-            
+
         Returns:
             Dictionary containing segmentation results
         """
-        # Auto-detect dimension
+        image_path = Path(image_path)
+        img = None
+
+        # Auto-detect dimension (reads the image once; reused below)
         if dimension == 'auto':
-            dimension = self.detect_image_dimension(image_path)
+            img = _read_image(image_path)
+            dimension = self._dimension_of(img)
         
         # Auto-select method
         if method == 'auto':
@@ -334,8 +350,9 @@ class UnifiedSegmentation:
             raise ImportError("StarDist is not available")
         
         # Read image
-        img = tiff_imread(image_path)
-        
+        if img is None:
+            img = _read_image(image_path)
+
         # Execute segmentation
         results = {}
         

@@ -8,7 +8,7 @@ Install the package first — see the [Installation Guide](installation.md). All
 
 **Prerequisites:**
 - Download sample data from Zenodo (e.g. [MouseEmbryo](https://zenodo.org/records/13219763)); see [Data Sources](../README.md#data-sources) for the full list.
-- Organize data according to [Data Architecture](data-architecture.md): stitched per-channel TIFFs under `<RUN_ID>_processed/stitched/`.
+- Organize data according to [Data Architecture](data-architecture.md): stitched images under `<RUN_ID>_processed/stitched/`, either one `mosaic.ome.tif` / `mosaic.ome.zarr` (current stitching output; needs `pip install -e ".[mosaic]"`) or one TIFF per channel.
 
 **Workflow Steps:**
 

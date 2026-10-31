@@ -73,7 +73,7 @@ Output root
 - `background_corrected/`: Illumination-corrected tiles (temporary by default)
 - `resized/`: Resized tiles (temporary by default)
 - `registered/`: Cross-cycle / cross-channel registered tiles
-- `stitched/`: Final stitched per-channel TIFFs — the input PRISM expects
+- `stitched/`: Final stitched mosaic (or, for older runs, per-channel TIFFs) — the input PRISM expects
 
 #### Analysis Directories (written by PRISM)
 - `readout/`: Spot detection and intensity measurement results
@@ -83,12 +83,12 @@ Output root
 ### File Contents
 
 #### Stitched Directory
-Contains final stitched images for each channel (plus DAPI):
-- `cyc_1_cy5.tif`
-- `cyc_1_TxRed.tif`
-- `cyc_1_cy3.tif`
-- `cyc_1_FAM.tif`
-- `cyc_1_DAPI.tif`
+Contains the final stitched images for every channel (cy5, TxRed, cy3, FAM, plus DAPI), in one of three layouts. PRISM reads whichever is present, and the mosaic when more than one is:
+- `mosaic.ome.tif`: current stitching output once finalized. One pyramidal, tiled, zstd-compressed OME-TIFF holding all channels
+- `mosaic.ome.zarr/`: the same content as an OME-Zarr (NGFF 0.4) store, while stitching is still in progress
+- `cyc_1_cy5.tif`, `cyc_1_TxRed.tif`, `cyc_1_cy3.tif`, `cyc_1_FAM.tif`, `cyc_1_DAPI.tif`: one uncompressed TIFF per channel, written by older stitching versions
+
+Configs name channels `cyc_<cycle>_<channel>.tif` in all three layouts; on a mosaic the name selects that cycle and channel inside it. Reading a mosaic needs the `mosaic` extra (`zarr`, `imagecodecs`).
 
 #### Readout Directory
 Contains spot-detection, intensity, and gene-calling results:
@@ -131,13 +131,13 @@ visual_dir = src_dir / 'visualization'      # figures
 ## Data Requirements
 
 ### File Formats
-- **Input**: TIFF files (.tif)
+- **Input**: a stitched OME-TIFF (`mosaic.ome.tif`) or OME-Zarr store (`mosaic.ome.zarr`), or per-channel TIFF files (.tif)
 - **Output**: CSV files (.csv) for data, YAML files (.yaml) for configuration
 
 ### Image Specifications
 - **Bit Depth**: 16-bit recommended
-- **Channels**: Multi-channel TIFF files
-- **Compression**: Uncompressed or LZW compression
+- **Channels**: all channels in one mosaic, or one TIFF per channel
+- **Compression**: zstd for the mosaics; per-channel TIFFs must be uncompressed (readout memory-maps them)
 
 ### Storage Requirements
 - **Temporary Space**: At least 2x the size of raw data
