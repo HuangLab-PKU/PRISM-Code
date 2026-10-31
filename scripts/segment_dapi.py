@@ -81,8 +81,9 @@ def parse_args():
     parser.add_argument(
         '--base-dir',
         type=str,
-        default=r'\\10.10.10.1\NAS Processed Images',
-        help='Base directory containing processed data (default: path_to_processed_dataset)',
+        required=True,
+        help='Base directory containing processed data, i.e. the parent of '
+             '{run_id}_processed',
     )
     parser.add_argument(
         '--nucleus-image',
