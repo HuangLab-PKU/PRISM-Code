@@ -29,24 +29,36 @@ def load_gene_calling_config(config_path: Union[str, Path]) -> Dict[str, Any]:
 
     # Load main configuration
     with open(config_path, "r", encoding="utf-8") as f:
-        main_config = yaml.safe_load(f)
+        main_config = yaml.safe_load(f) or {}
 
     # Get config directory
     config_dir = config_path.parent
 
-    # Load configuration modules
+    # Compose in increasing precedence: modules -> the main file's own body ->
+    # overrides.  Including the main body is what lets a content file (one with
+    # no config_modules key) be passed straight to the pipeline as itself.
     config_modules = main_config.get("config_modules", [])
     merged_config = {}
 
     for module_name in config_modules:
         module_path = config_dir / module_name
-        if module_path.exists():
-            with open(module_path, "r", encoding="utf-8") as f:
-                module_config = yaml.safe_load(f)
-            merged_config = _merge_configs(merged_config, module_config)
-            logger.info(f"Loaded configuration module: {module_name}")
-        else:
-            logger.warning(f"Configuration module not found: {module_path}")
+        if not module_path.exists():
+            raise FileNotFoundError(
+                f"Configuration module not found: {module_path} "
+                f"(referenced by {config_path})"
+            )
+        with open(module_path, "r", encoding="utf-8") as f:
+            module_config = yaml.safe_load(f) or {}
+        merged_config = _merge_configs(merged_config, module_config)
+        logger.info(f"Loaded configuration module: {module_name}")
+
+    own_body = {
+        key: value
+        for key, value in main_config.items()
+        if key not in ("config_modules", "overrides")
+    }
+    if own_body:
+        merged_config = _merge_configs(merged_config, own_body)
 
     # Apply overrides
     overrides = main_config.get("overrides", {})
