@@ -39,9 +39,9 @@ python scripts/readout.py <RUN_ID>
 
 Edit `configs/readout.yaml` first:
 - `base_dir`: the root that contains `<RUN_ID>_processed/`
-- `channel_files`: the stitched TIFF filenames under `stitched/`
+- `channels`: the stitched TIFF filenames under `stitched/` and the column name each one produces
 - `detection_method`: `spotiflow` (default, deep-learning), or the traditional `gaussian_tophat` / `tophat`
-- `detection_snr`, `tophat_radius`, `search_radius`, `dedup_threshold`, `block_size`, `block_overlap`, `n_workers`
+- `detection_prob_thresh`, `device`, `detection_snr`, `tophat_radius`, `search_radius`, `dedup_threshold`, `block_size`, `block_overlap`, `n_workers`
 
 See the [Configuration Guide](configuration.md) for the full parameter reference.
 

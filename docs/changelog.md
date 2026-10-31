@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The two shipped configs could not be chained.** `readout.yaml` derived intensity column
+  names from image filename stems (`cyc_1_cy5`), while `gene_calling_base.yaml` keyed
+  `channel_correction.channels` on `r01_ex628`, so the readout → gene-calling handoff died
+  with a `KeyError` inside `apply_channel_correction`. Channel *files* and channel *names*
+  are now declared separately (`channels: [{file, name}]`), letting upstream acquisition own
+  the filenames while PRISM owns the column vocabulary. The legacy `channel_files:` list
+  still works and keeps its file-stem naming. New `prism.readout.channels.resolve_channels`,
+  with the stage contract pinned by `tests/test_shipped_configs.py`.
+- **`load_gene_calling_config` silently discarded the main file's own body.** The merge was
+  seeded from `config_modules` and `overrides` only, so passing a content file (one without
+  a `config_modules` key) straight to the pipeline yielded `{}` — 130 lines of
+  `gene_calling_base.yaml` evaporating without a warning. Layering is now modules → main
+  body → overrides. A missing module file also fails fast instead of logging a warning and
+  producing a partial config.
+- **Colourspace visualization fabricated missing data.** `_preprocess_for_visualization`
+  filled absent `color_dim_1` / `color_dim_2` / `ch3/A` / `G_layer` columns with
+  `np.random`, rendering a plausible-looking figure of pure noise on a schema mismatch. It
+  now raises `ValueError` naming every missing column.
+
+### Changed
+- Spotiflow's `prob_thresh` and torch `device` are read from `readout.yaml`
+  (`detection_prob_thresh`, `device`) instead of being hardcoded in `scripts/readout.py`.
+  `device: null` auto-selects CUDA when available and falls back to CPU, replacing the
+  previous unconditional `'cuda'`.
+- `scripts/segment_dapi.py --base-dir` and `readout.yaml:base_dir` no longer default to an
+  internal lab NAS path; `--base-dir` is now required and the config ships a placeholder.
+- `pyproject.toml` sets `testpaths = ["tests"]` so collection stops walking into
+  `experiments/`.
+
 ### Added
 - **Posterior-confidence QC for gene calling.** The GMM decoder's per-spot top-1 posterior
   is now surfaced as a decode-confidence score. `ClassificationResult.to_dataframe(...,
