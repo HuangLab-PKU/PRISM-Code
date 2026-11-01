@@ -28,20 +28,24 @@ Used by `scripts/readout.py`. The `RUN_ID` is passed on the command line; everyt
 # Base directory for processed data; outputs go to BASE_DIR / "{RUN_ID}_processed"
 base_dir: "/path/to/processed"
 
-# Stitched input filenames (under stitched/); the stem becomes the channel label in output
-channel_files:
-  - cyc_1_cy5.tif      # Cy5,   excitation 628 nm
-  - cyc_1_TxRed.tif    # TxRed, excitation 586 nm
-  - cyc_1_cy3.tif      # Cy3,   excitation 531 nm
-  - cyc_1_FAM.tif      # FAM,   excitation 485 nm
+# Input channels. `file` is the stitched TIFF under stitched/, named by upstream
+# acquisition; `name` is the column PRISM emits and the key gene calling looks up
+# in channel_correction.channels.  Omit `name` to fall back to the file stem.
+channels:
+  - {file: cyc_1_cy5.tif,   name: r01_ex628}   # Cy5,   excitation 628 nm
+  - {file: cyc_1_TxRed.tif, name: r01_ex586}   # TxRed, excitation 586 nm
+  - {file: cyc_1_cy3.tif,   name: r01_ex531}   # Cy3,   excitation 531 nm
+  - {file: cyc_1_FAM.tif,   name: r01_ex485}   # FAM,   excitation 485 nm
 
 # Spot detection
 detection_method: spotiflow   # spotiflow (default) | gaussian_tophat | tophat
-detection_snr:                # per-file-stem SNR for the traditional methods
-  cyc_1_cy5: 3.0
-  cyc_1_TxRed: 3.0
-  cyc_1_cy3: 3.0
-  cyc_1_FAM: 3.0
+detection_prob_thresh:        # spotiflow threshold; null uses the model default
+device:                       # torch device; null auto-selects cuda when available
+detection_snr:                # per-channel-name SNR for the traditional methods
+  r01_ex628: 3.0
+  r01_ex586: 3.0
+  r01_ex531: 3.0
+  r01_ex485: 3.0
 
 # Intensity reading (tophat + local max)
 tophat_radius: 3
@@ -60,8 +64,9 @@ n_workers: 4
 
 **Parameter notes**:
 - `base_dir`: root that contains `<RUN_ID>_processed/`. Edit this for your machine.
-- `channel_files`: one stitched TIFF per channel; the filename stem (e.g. `cyc_1_cy5`) is used as the column name in `intensity.csv`.
-- `detection_method`: `spotiflow` is the deep-learning default (the `readout.py` spotiflow path uses `device='cuda'`, so it needs a GPU). `gaussian_tophat` / `tophat` are CPU-friendly traditional fallbacks that use `detection_snr` and `tophat_radius`.
+- `channels`: one stitched TIFF per channel. `file` is what upstream acquisition wrote; `name` is the column PRISM emits into `intensity.csv` and the key gene calling resolves against `channel_correction.channels` in `gene_calling_base.yaml` — the two must agree or the handoff fails. Keeping them separate means you never have to rename acquisition output. The older `channel_files:` form (a bare filename list, column name = file stem) still loads.
+- `detection_method`: `spotiflow` is the deep-learning default. `gaussian_tophat` / `tophat` are CPU-friendly traditional fallbacks that use `detection_snr` and `tophat_radius`.
+- `detection_prob_thresh` / `device`: spotiflow only. Leave `device` unset to auto-select CUDA when available and fall back to CPU — a GPU is not required. `detection_prob_thresh` lowers the detection threshold (the lab default for PRISM runs is `0.01`, paired with a downstream intensity filter).
 - `block_size` / `block_overlap`: large stitched images are processed block-by-block; overlap avoids edge effects. `n_workers` sets process-pool parallelism.
 
 **Stitched layouts**: `readout.py` reads `stitched/` in any of three layouts and picks the one present: a single `mosaic.ome.tif` (finalized output of current stitching), a `mosaic.ome.zarr` store (stitching still in progress), or one `cyc_<cycle>_<channel>.tif` per channel (older runs). The channel filenames above are written the same way for all three; on a mosaic, `cyc_1_cy5.tif` selects cycle 1, channel `cy5` inside it, so the name must follow the `cyc_<cycle>_<channel>.tif` pattern. If both a mosaic and per-channel TIFFs are present, the mosaic is read. Mosaics need the `mosaic` extra (`pip install -e ".[mosaic]"`).

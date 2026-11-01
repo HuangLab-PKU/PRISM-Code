@@ -63,3 +63,8 @@ Publication = "https://doi.org/10.1038/s41587-025-02883-7"
 
 [tool.setuptools.packages.find]
 include = ["prism*"]
+
+[tool.pytest.ini_options]
+# Without an explicit testpaths, collection walks the repo and picks up the
+# loose demo scripts under experiments/, which are not tests.
+testpaths = ["tests"]

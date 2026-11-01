@@ -29,6 +29,7 @@ from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # Import from installed PRISM package
+from prism.readout.channels import resolve_channels
 from prism.readout.spot_detection import get_spot_coordinates
 from prism.readout.intensity_readout import read_intensity_tophat
 from prism.readout.stitched import open_stitched_plane, stitched_plane_shape
@@ -49,6 +50,8 @@ src_dir = None
 stc_dir = None
 read_dir = None
 DETECTION_METHOD = 'spotiflow'
+DETECTION_PROB_THRESH = None  # spotiflow threshold; None uses the model default
+DEVICE = None  # torch device for spotiflow; None auto-selects cuda when available
 DETECTION_SNR = {}
 TOPHAT_RADIUS = 3
 SEARCH_RADIUS = 1
@@ -61,6 +64,7 @@ N_WORKERS = 4
 def load_config(config_dir):
     """Load readout.yaml from config_dir and set module-level config globals."""
     global CHANNELS, CHANNEL_FILES, BASE_DIR, DETECTION_METHOD, DETECTION_SNR
+    global DETECTION_PROB_THRESH, DEVICE
     global TOPHAT_RADIUS, SEARCH_RADIUS, DEDUP_THRESHOLD
     global BLOCK_SIZE, BLOCK_OVERLAP, N_WORKERS
     config_path = Path(config_dir) / 'readout.yaml'
@@ -69,11 +73,14 @@ def load_config(config_dir):
     with open(config_path, encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
 
-    CHANNEL_FILES = [str(f) for f in cfg['channel_files']]
-    CHANNELS = [Path(f).stem for f in CHANNEL_FILES]
+    channels = resolve_channels(cfg)
+    CHANNEL_FILES = [filename for filename, _ in channels]
+    CHANNELS = [name for _, name in channels]
 
     BASE_DIR = Path(cfg.get('base_dir', '.'))
     DETECTION_METHOD = cfg.get('detection_method', DETECTION_METHOD)
+    DETECTION_PROB_THRESH = cfg.get('detection_prob_thresh', DETECTION_PROB_THRESH)
+    DEVICE = cfg.get('device', DEVICE)
     DETECTION_SNR = cfg.get('detection_snr', DETECTION_SNR)
     TOPHAT_RADIUS = cfg.get('tophat_radius', TOPHAT_RADIUS)
     SEARCH_RADIUS = cfg.get('search_radius', SEARCH_RADIUS)
@@ -152,7 +159,10 @@ def main(run_id, stc_dir, read_dir):
     def _detection_task_iter():
         for channel, fname in zip(CHANNELS, CHANNEL_FILES):
             if DETECTION_METHOD == 'spotiflow':
-                detection_kwargs = {'prob_thresh': None, 'device': 'cuda'}
+                detection_kwargs = {
+                    'prob_thresh': DETECTION_PROB_THRESH,
+                    'device': DEVICE,
+                }
             else:
                 detection_kwargs = {
                     'snr': DETECTION_SNR.get(channel, 3.0),

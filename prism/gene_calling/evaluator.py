@@ -544,24 +544,29 @@ class ClassificationEvaluator:
         return plot_path
 
     def _preprocess_for_visualization(self, data: pd.DataFrame) -> pd.DataFrame:
-        """Preprocess data for visualization (extract required features)."""
-        processed_data = data.copy()
+        """Validate that the columns the colourspace figures need are present.
 
-        # Ensure required columns exist
+        Args:
+            data: Frame that the colourspace renderers will plot.
+
+        Returns:
+            A copy of *data*.
+
+        Raises:
+            ValueError: If any required column is missing.  These columns must
+                never be synthesised -- a fabricated colourspace figure is
+                indistinguishable from a real one, so a schema mismatch has to
+                fail here rather than produce a plot of noise.
+        """
         required_cols = ["color_dim_1", "color_dim_2", "ch3/A", "G_layer"]
-        for col in required_cols:
-            if col not in processed_data.columns:
-                # If columns don't exist, create dummy data
-                if col == "color_dim_1":
-                    processed_data[col] = np.random.normal(0, 0.1, len(processed_data))
-                elif col == "color_dim_2":
-                    processed_data[col] = np.random.normal(0, 0.1, len(processed_data))
-                elif col == "ch3/A":
-                    processed_data[col] = np.random.uniform(0, 1, len(processed_data))
-                elif col == "G_layer":
-                    processed_data[col] = np.random.randint(0, 2, len(processed_data))
+        missing = [col for col in required_cols if col not in data.columns]
+        if missing:
+            raise ValueError(
+                f"Cannot render colourspace visualization: missing required "
+                f"columns {missing}. Available columns: {list(data.columns)}"
+            )
 
-        return processed_data
+        return data.copy()
 
     def _plot_cluster_sizes(
         self, result: ClassificationResult, output_path: Path
