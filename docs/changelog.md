@@ -38,6 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `experiments/`.
 
 ### Added
+- A shared `python -m prism.pipeline` production entry for the explicit `prism46_v1`
+  profile, with package-owned readout, preprocessing, seeded GMM, annotation,
+  manual-gating figures, technical checks and source-bound stage receipts.
+- Complete panel CSV validation and explicit configuration replace filename-based
+  target inference. Later stages reject changed predecessor recipes and outputs.
+- Readout worker failures propagate; incomplete intensities are not filled with zero.
+  Loading a new readout config resets omitted settings instead of inheriting a prior batch.
+- Manual-gating colour-space exports now accompany the channel-space overview: one
+  scatter/density pair per layer at 800 x 700 pixels, with an exact pixel-coordinate
+  sidecar. These use all assigned spots rather than the overview subsample.
 - **Posterior-confidence QC for gene calling.** The GMM decoder's per-spot top-1 posterior
   is now surfaced as a decode-confidence score. `ClassificationResult.to_dataframe(...,
   confidence_threshold=t)` adds an `is_confident` column; `SignalClassificationPipeline`
