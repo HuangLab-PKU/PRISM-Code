@@ -11,11 +11,13 @@ from .gene_calling.prism31.context import load_context
 
 STAGES = ('readout', 'preprocess', 'gmm', 'annotate', 'validate')
 OUTPUTS = {
-    'readout': ('position.csv', 'intensity.csv', 'readout_params.yaml'),
+    'readout': ('position.csv', 'intensity.csv', 'readout_params.yaml',
+                'readout_qc.png', 'readout_qc.json'),
     'preprocess': ('params.yaml', 'intensity_preprocessed.csv', 'intensity_G.csv'),
     'gmm': ('intensity_labeled.csv', 'figures/layer_figures.yaml',
             *tuple(f'figures/{row}-layer{k}.png' for row in (1, 2) for k in (1, 2))),
-    'annotate': ('spots_called.csv', 'gene_counts.csv', 'calling_summary.yaml'),
+    'annotate': ('spots_called.csv', 'gene_counts.csv', 'calling_summary.yaml',
+                 'gene_calling_qc.png', 'gene_calling_qc.json'),
     'validate': ('validation.json',),
 }
 
@@ -75,7 +77,10 @@ def validate(ctx, audit=False):
     import pandas as pd
     from PIL import Image
     import yaml
-    from spatial_img_core import mosaic_io
+    from prism.readout import mosaic as mosaic_io
+    from prism.qc import require_qc_artifacts
+    require_qc_artifacts(ctx.read_dir, 'readout')
+    require_qc_artifacts(ctx.read_dir, 'gene_calling')
     if not audit:
         # Normal execution already builds these outputs from matched in-memory data.
         # Check only small handoff metadata; do not read millions of rows back again.
@@ -174,6 +179,9 @@ def execute(ctx, stage, resume=False, audit=False):
     records.mkdir(exist_ok=True)
     receipt = records / f'{stage}.json'
     require_predecessors(ctx, stage, audit=audit)
+    if stage == 'preprocess':
+        from prism.qc.reports import ensure_readout_qc
+        ensure_readout_qc(ctx.read_dir, ctx.run_id)
     before = identity(ctx, stage)
     if receipt.exists():
         previous = json.loads(receipt.read_text())
@@ -225,6 +233,9 @@ def execute(ctx, stage, resume=False, audit=False):
                  {'stage': stage, 'identity_before': before, 'identity_after': after,
                   'different_fields': [k for k in before if before[k] != after[k]]})
             raise RuntimeError('Source/config/input changed during stage; outputs retained without acceptance')
+    if stage in ('readout', 'annotate'):
+        from prism.qc import require_qc_artifacts
+        require_qc_artifacts(ctx.read_dir, 'readout' if stage == 'readout' else 'gene_calling')
     outputs = {name: pin(ctx.read_dir / name) for name in OUTPUTS[stage]}
     save(receipt, {'stage': stage, 'identity': before, 'outputs': outputs,
                    'started': started, 'finished': time.time(), 'status': 'PASS',
@@ -266,5 +277,3 @@ def main(argv=None):
 
 if __name__ == '__main__':
     raise SystemExit(main())
-
-

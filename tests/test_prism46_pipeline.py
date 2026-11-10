@@ -53,7 +53,8 @@ def prepare_run(base, run_id, omit46):
     (base/'readout.yaml').write_text(yaml.safe_dump({'base_dir':str(base)}))
     cfg={'schema':'prism_run_v1','profile':'prism46_v1','run_id':run_id,
          'base_dir':str(base),'panel':'panel.csv','panel_id':'explicit_fixture',
-         'readout_config_dir':'.','calling':{'confidence_threshold':.91 if omit46 else .8}}
+         'readout_config_dir':'.','detector_model_dir':str(base/'local_model'),'calling':{'confidence_threshold':.91 if omit46 else .8}}
+    (base/'local_model').mkdir()
     path=base/'run.yaml';path.write_text(yaml.safe_dump(cfg))
     return path,rd,frame
 
@@ -126,7 +127,10 @@ def test_source_change_records_both_identities_before_refusing(tmp_path, monkeyp
     from prism.readout import pipeline as reader
     config,rd,frame=prepare_run(tmp_path,'DIAGNOSTIC',False)
     ctx=load_context(config)
-    for name in driver.OUTPUTS['readout']:(rd/name).unlink()
+    from prism.readout import spot_detection
+    monkeypatch.setattr(spot_detection,'_get_spotiflow_model',lambda **kwargs:None)
+    monkeypatch.setattr(reader,'DETECTION_MODEL_PATH',str(Path(ctx.config['detector_model_dir']).resolve()))
+    for name in driver.OUTPUTS['readout']:(rd/name).unlink(missing_ok=True)
     identities=iter([{'generation':'before'},{'generation':'after'}])
     monkeypatch.setattr(driver,'identity',lambda *a:next(identities))
     monkeypatch.setattr(reader,'load_config',lambda *a:None)
@@ -149,14 +153,22 @@ def test_routine_readout_does_not_repeat_readback_or_end_identity(tmp_path,monke
     from prism.readout import pipeline as reader
     config,rd,frame=prepare_run(tmp_path,'ROUTINE',False)
     ctx=load_context(config)
-    for name in driver.OUTPUTS['readout']:(rd/name).unlink()
+    from prism.readout import spot_detection
+    monkeypatch.setattr(spot_detection,'_get_spotiflow_model',lambda **kwargs:None)
+    monkeypatch.setattr(reader,'DETECTION_MODEL_PATH',str(Path(ctx.config['detector_model_dir']).resolve()))
+    for name in driver.OUTPUTS['readout']:(rd/name).unlink(missing_ok=True)
     calls=[]
     def identity(*args):
         calls.append(True)
         assert len(calls)==1,'Routine execution must not repeat the end identity audit'
         return {'recipe':'fixed'}
     def write(*args):
-        for name in driver.OUTPUTS['readout']:(rd/name).write_text('fixture output')
+        from prism.qc import generate_readout_qc
+        columns=['r01_ex628','r01_ex586','r01_ex531','r01_ex485']
+        positions=frame[['index','Y','X']];values=frame[['index',*columns]]
+        positions.to_csv(rd/'position.csv',index=False);values.to_csv(rd/'intensity.csv',index=False)
+        (rd/'readout_params.yaml').write_text(yaml.safe_dump({'n_spots':len(frame)}))
+        generate_readout_qc(values,positions,rd,ctx.run_id,columns)
     def forbidden(*args):raise AssertionError('Routine execution must not reread tables')
     monkeypatch.setattr(driver,'identity',identity)
     monkeypatch.setattr(reader,'load_config',lambda *a:None)
@@ -166,3 +178,11 @@ def test_routine_readout_does_not_repeat_readback_or_end_identity(tmp_path,monke
     driver.execute(ctx,'readout')
     receipt=json.loads((rd/'pipeline_records/readout.json').read_text())
     assert receipt['status']=='PASS' and receipt['validation_mode']=='routine'
+
+
+def test_missing_qc_blocks_profile_acceptance(decoded):
+ config,rd,truth,omit46=decoded
+ figure=rd/'gene_calling_qc.png';payload=figure.read_bytes();figure.unlink()
+ try:
+  with pytest.raises(FileNotFoundError):main(['--config',str(config),'--stage','validate','--resume'])
+ finally:figure.write_bytes(payload)

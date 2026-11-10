@@ -173,3 +173,14 @@ def run(context):
         summary['protein_specificity_validated'] = False
         yaml.safe_dump(plain(summary), f, sort_keys=False)
     print(f"  wrote calling_summary.yaml (top probe {summary['top_probe']} = {summary['top_probe_share_pct']}% of calls)")
+
+    from prism.qc import generate_gene_calling_qc
+    from prism.qc.reports import image_metadata
+    shape, pixel_size = image_metadata(context.run_dir / 'stitched')
+    generate_gene_calling_qc(
+        called[out_cols], read_dir, RUN_ID,
+        features=[PANEL[p] for p in sorted(PANEL)],
+        excluded_features=[PANEL[p] for p in PANEL if CLASSES[p] == 'unprinted'],
+        detected_spots=params.get('n_detected'), img_shape=shape,
+        pixel_size_um=pixel_size,
+    )

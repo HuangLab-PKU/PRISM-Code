@@ -8,8 +8,30 @@ from .vis_binary import decode
 
 def save(p,v):
  t=p.with_suffix(p.suffix+'.tmp');t.write_text(json.dumps(v,indent=2,default=str),encoding='utf8');t.replace(p)
+def qc_from_numerical_checkpoint(rd,cfg,rid,panel,config_path):
+ from prism.qc import generate_gene_calling_qc,require_qc_artifacts
+ from prism.qc.reports import ensure_readout_qc,image_metadata
+ if (rd/'vis_binary.lock').exists():raise ValueError('Active decode lock; wait for the producer before QC-only recovery')
+ checkpoint=rd/'binary_numerical_receipt.json'
+ if not checkpoint.exists():checkpoint=rd/'binary_validation.json'
+ receipt=json.loads(checkpoint.read_text())
+ if receipt['run_id']!=rid or receipt['config_sha256']!=hashlib.sha256(config_path.read_bytes()).hexdigest() or receipt['panel_sha256']!=hashlib.sha256(Path(cfg['panel']).read_bytes()).hexdigest():raise ValueError('Existing numerical recipe changed; QC-only cannot reassign genes')
+ for name,identity in receipt.get('numerical_products',{}).items():
+  st=(rd/name).stat()
+  if [st.st_size,st.st_mtime_ns]!=identity:raise ValueError('Existing numerical product changed: '+name)
+ ensure_readout_qc(rd,rid,channels=cfg['channels'],acquired_cycles=cfg['cycles'])
+ shape,pixel=image_metadata(rd.parent/'stitched')
+ model=json.loads((rd/'binary_model.json').read_text())
+ q=generate_gene_calling_qc(rd/'mapping_postcode.csv',rd,rid,diagnostics=model,features=panel.gene.tolist(),detected_spots=receipt['n_detected'],img_shape=shape,pixel_size_um=pixel)
+ observed=q['label_counts'];counts=pd.read_csv(rd/'gene_counts.csv',keep_default_na=False)
+ if q['input_rows']!=receipt['n_detected'] or observed.get('Background',0)!=receipt['n_background'] or sum(observed.get(g,0) for g in panel.gene)!=receipt['n_called']:raise ValueError('QC-only calling counts changed')
+ if len(counts)!=len(panel) or counts.set_index('gene').n_spots.to_dict()!={g:observed.get(g,0) for g in panel.gene}:raise ValueError('QC-only per-gene counts changed')
+ require_qc_artifacts(rd,'readout',expected_rows=receipt['n_detected']);require_qc_artifacts(rd,'gene_calling',expected_rows=q['input_rows'])
+ save(rd/'binary_validation.json',{**receipt,'status':'ROUTINE_OUTPUT_CHECKS_PASSED','qc_required':True,'qc_only_recovery':True});return 0
+
+
 def main(argv=None):
- ap=argparse.ArgumentParser();ap.add_argument('--config',type=Path,required=True);ap.add_argument('--run-id',required=True);args=ap.parse_args(argv)
+ ap=argparse.ArgumentParser();ap.add_argument('--config',type=Path,required=True);ap.add_argument('--run-id',required=True);ap.add_argument('--qc-only',action='store_true',help='Verify existing numerical outputs and regenerate QC without refitting');args=ap.parse_args(argv)
  cfg=yaml.safe_load(args.config.read_text(encoding='utf-8-sig'));rid=cfg['run_id']
  cycles=cfg['cycles']
  if args.run_id!=rid or len(cycles)!=1 or type(cycles[0]) is not int or cycles[0]<1 or cfg['profile']!='vis31_5bit_single_acquisition_v1':raise ValueError('Run/acquisition/profile mismatch')
@@ -18,6 +40,7 @@ def main(argv=None):
  panel=pd.read_csv(cfg['panel'],dtype=str,keep_default_na=False)
  if set(panel.columns)!={'gene','code_id','bits'} or len(panel)!=31 or not panel.gene.is_unique or set(panel.bits)!={f'{i:05b}' for i in range(1,32)}:raise ValueError('Expected exactly31 distinct nonzero five-bit gene assignments')
  rd=Path(cfg['base_dir'])/(rid+'_processed')/'readout';rd.mkdir(parents=True,exist_ok=True)
+ if args.qc_only:return qc_from_numerical_checkpoint(rd,cfg,rid,panel,args.config)
  outputs=['mapping_postcode.csv','mapped_genes.csv','gene_counts.csv','binary_model.json','binary_validation.json']
  if any((rd/n).exists() for n in outputs):raise ValueError('Existing decode outputs require inspected checkpoint recovery')
  lock=rd/'vis_binary.lock'
@@ -26,6 +49,8 @@ def main(argv=None):
   position=pd.read_csv(rd/'position.csv');intensity=pd.read_csv(rd/'intensity.csv')
   if not position['index'].is_unique or not np.array_equal(position['index'],intensity['index']):raise ValueError('Position/intensity identity mismatch')
   if not np.isfinite(position[['Y','X']].to_numpy()).all():raise ValueError('Invalid coordinates')
+  from prism.qc.reports import ensure_readout_qc
+  ensure_readout_qc(rd,rid,intensity=intensity,positions=position,channels=channels,acquired_cycles=cycles)
   bits=np.asarray([[int(x) for x in word] for word in panel.bits],dtype=np.float32)[:,:,None]
   values=intensity[channels].to_numpy(dtype=np.float32)[:,:,None]
   result,model=decode(values,bits,panel.gene.tolist(),panel.bits.tolist(),num_iter=int(cfg.get('num_iter',100)),batch_size=int(cfg.get('batch_size',100000)),inference_chunk_size=int(cfg.get('inference_chunk_size',100000)),background_prior=cfg.get('background_prior'))
@@ -36,6 +61,15 @@ def main(argv=None):
   save(rd/'binary_model.json',model)
   receipt={'status':'ROUTINE_OUTPUT_CHECKS_PASSED','run_id':rid,'profile':cfg['profile'],'cycle':cycles[0],'informative_bits':5,'channels':channels,'panel_size':31,'n_detected':len(result),'n_background':int(counts.get('Background',0)),'n_called':int(summary.n_spots.sum()),'minimum_hamming':1,'error_correction':False,'posterior_is_calibrated_error_rate':False,'phasing_correction':False,'config_sha256':hashlib.sha256(args.config.read_bytes()).hexdigest(),'panel_sha256':hashlib.sha256(Path(cfg['panel']).read_bytes()).hexdigest(),'at':time.time()}
   if receipt['n_background']+receipt['n_called']!=len(result):raise ValueError('Count conservation failed')
+  receipt['numerical_products']={name:[(rd/name).stat().st_size,(rd/name).stat().st_mtime_ns] for name in ['mapping_postcode.csv','mapped_genes.csv','gene_counts.csv','binary_model.json']}
+  save(rd/'binary_numerical_receipt.json',{**receipt,'status':'NUMERICAL_OUTPUTS_CHECKED_QC_PENDING'})
+  from prism.qc import generate_gene_calling_qc, require_qc_artifacts
+  from prism.qc.reports import image_metadata
+  shape,pixel=image_metadata(rd.parent/'stitched')
+  generate_gene_calling_qc(result,rd,rid,diagnostics=model,features=panel.gene.tolist(),detected_spots=len(position),img_shape=shape,pixel_size_um=pixel)
+  require_qc_artifacts(rd,'readout',expected_rows=len(position))
+  require_qc_artifacts(rd,'gene_calling',expected_rows=len(result))
+  receipt['qc_required']=True
   save(rd/'binary_validation.json',receipt);print(json.dumps(receipt),flush=True)
  except BaseException:
   save(rd/'vis_binary_failure.json',{'error':traceback.format_exc(),'at':time.time()});raise
@@ -44,4 +78,3 @@ def main(argv=None):
   lock.unlink()
  return 0
 if __name__=='__main__':raise SystemExit(main())
-
