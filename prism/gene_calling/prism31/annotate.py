@@ -72,7 +72,8 @@ def run(context):
         _rec['pct_of_grid_calls'] = round(100.0 * _rec['n_spots'] / _n_grid_calls, 3) if _rec['probe'] <= N_LABELS else None
     summary_df = pd.DataFrame(per_probe).T
     summary_df.index.name = 'code'
-    summary_df.to_csv(read_dir / 'gene_counts.csv')
+    context.log_dir.mkdir(parents=True, exist_ok=True)
+    summary_df.to_csv(context.log_dir / 'gene_counts.csv')
     print('\n  ' + summary_df[['probe', 'name', 'gene', 'class', 'n_spots', 'pct_of_calls', 'n_confident', 'median_confidence']].to_string().replace('\n', '\n  '))
     _grid_calls = called[called['probe'] <= N_LABELS]
     _unprinted = [p for p in PANEL if p <= N_LABELS and CLASSES[p] == 'unprinted']

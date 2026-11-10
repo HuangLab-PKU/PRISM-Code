@@ -30,8 +30,15 @@ class RunContext:
     options: dict
 
     @property
+    def log_dir(self):
+        return self.run_dir / "logs" / "prism31"
+
+    @property
     def work_dir(self):
-        path = self.run_dir / "processing" / "prism31"
+        path = self.run_dir / "archive" / "prism31_intermediates"
+        previous = self.run_dir / "processing" / "prism31"
+        if not path.exists() and previous.is_dir():
+            return previous
         if not path.exists() and (self.read_dir / "intensity_preprocessed.csv").is_file():
             return self.read_dir  # Resume a legacy run in its original layout.
         return path

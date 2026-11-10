@@ -56,6 +56,7 @@ def main(argv=None):
         model=rd/'binary_model.json'
         if model.exists():diagnostics=json.loads(model.read_text())
         counts=rd/'gene_counts.csv'
+        if not counts.exists():counts=run/'logs/prism31/gene_counts.csv'
         if counts.exists():
             frame=pd.read_csv(counts,keep_default_na=False)
             col='gene' if 'gene' in frame else 'Gene' if 'Gene' in frame else None
