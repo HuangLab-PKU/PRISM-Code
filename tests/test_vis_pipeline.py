@@ -34,3 +34,25 @@ def test_refuse_wrong_acquisition_or_dye_order(tmp_path,change):
  path.write_text(yaml.safe_dump(cfg))
  with pytest.raises(ValueError):vis_pipeline.main(['--config',str(path),'--run-id',cfg['run_id']])
  assert not (rd/'mapped_genes.csv').exists()
+
+
+def test_qc_failure_blocks_completion_and_recovers_without_refitting(tmp_path,monkeypatch):
+ path,rd,cfg,panel=prepare(tmp_path)
+ def fake(values,bits,genes,words,**kwargs):
+  return pd.DataFrame({'Gene':[genes[0]]*40,'Probability':[.99]*40,'Probability_2':[.01]*40,'Entropy':[.1]*40}),{'losses':[2.,1.]}
+ monkeypatch.setattr(vis_pipeline,'decode',fake)
+ import prism.qc as qc
+ real=qc.generate_gene_calling_qc
+ def failed(*a,**k):raise RuntimeError('figure export failed')
+ monkeypatch.setattr(qc,'generate_gene_calling_qc',failed)
+ with pytest.raises(RuntimeError,match='figure export'):
+  vis_pipeline.main(['--config',str(path),'--run-id',cfg['run_id']])
+ assert (rd/'binary_numerical_receipt.json').exists()
+ assert (rd/'mapping_postcode.csv').exists() and not (rd/'binary_validation.json').exists()
+ assert not (rd/'vis_binary.lock').exists()
+ monkeypatch.setattr(qc,'generate_gene_calling_qc',real)
+ def forbidden(*a,**k):raise AssertionError('QC recovery must not refit')
+ monkeypatch.setattr(vis_pipeline,'decode',forbidden)
+ assert vis_pipeline.main(['--config',str(path),'--run-id',cfg['run_id'],'--qc-only'])==0
+ assert json.loads((rd/'binary_validation.json').read_text())['qc_required']
+ qc.require_qc_artifacts(rd,'gene_calling',expected_rows=40)

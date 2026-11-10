@@ -13,15 +13,16 @@ from prism.gene_calling.evaluator import ClassificationEvaluator
 from prism.gene_calling.layer_figures import export_manual_gate_layers
 
 
-def test_pipeline_exports_screen_sized_pairs_and_exact_mapping(tmp_path):
+def test_shared_exporter_keeps_screen_sized_pairs_and_exact_mapping(tmp_path):
     data = pd.DataFrame({'color_dim_1': [-.3, .2, .1],
                          'color_dim_2': [.1, .3, -.1],
                          'ch3/A': [.2, 1., 1.], 'G_layer': [0, 1, 1]})
     result = ClassificationResult(labels=np.array([1, 16, -1]))
     # A user-wide tight-save setting must not change the gate's pixel extent.
     with plt.rc_context({'savefig.bbox': 'tight'}):
-        ClassificationEvaluator({}).visualize_channel_space(
-            result, data, tmp_path, g_layer_num=3)
+        masks = [data['G_layer'].to_numpy() == layer for layer in range(3)]
+        export_manual_gate_layers(data, result.labels, masks, tmp_path,
+                                  {1: '#0072B2', 16: '#E69F00'})
     for layer in (1, 2, 3):
         for row in (1, 2):
             with Image.open(tmp_path / f'{row}-layer{layer}.png') as image:

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Automatic QC
+- Readout and gene-calling QC PNG/JSON are now required pipeline artifacts for
+  shared readout, PR31/PR46, VIS and file-producing generic classification.
+- Reports use complete counts and explicitly bounded samples; absent pure-Cy3
+  posteriors and missing fitting/entropy diagnostics remain unavailable.
+- Calling-only imports obtain readout QC automatically. A QC-only backfill command
+  and source-bound VIS numerical checkpoint prevent refitting just to repair a plot.
+- See [automatic QC](qc.md) for outputs, denominators, limits and recovery.
+
 ### Fixed
 - **The two shipped configs could not be chained.** `readout.yaml` derived intensity column
   names from image filename stems (`cyc_1_cy5`), while `gene_calling_base.yaml` keyed
@@ -57,6 +66,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `classification.confidence_threshold` (default `0.8`; set to `null` to disable). New
   `prism.gene_calling.confidence` module (`top1_confidence`, `confident_mask`) with unit
   tests in `tests/test_confidence.py`.
+
+- **Stitched mosaic input (OME-TIFF / OME-Zarr).** Current `spatial_img_core` stitching
+  writes one `stitched/mosaic.ome.tif` (finalized) or `stitched/mosaic.ome.zarr` (in
+  progress) instead of one `cyc_1_<channel>.tif` per channel, and `scripts/readout.py` /
+  `scripts/segment_dapi.py` could not open either. Both now read all three layouts. Configs
+  are unchanged: a channel is still named `cyc_1_cy5.tif`, and on a mosaic that name
+  selects cycle 1 / channel `cy5` inside it. When a mosaic and per-channel TIFFs are both
+  present, the mosaic is read. Blocks are read lazily from the compressed tiles, so the
+  whole plane is never loaded. New `prism.readout.mosaic` (a copy of
+  `sprintseq.readout.mosaic`; reads the format without depending on `spatial_img_core`)
+  and `prism.readout.stitched` (filename addressing on top). Needs the new `mosaic`
+  extra: `pip install -e ".[mosaic]"` (`zarr`, `imagecodecs`). Tests:
+  `tests/test_mosaic*.py`, `tests/test_stitched.py`, and
+  `tests/test_readout_layouts.py`, which checks that readout output is identical whichever
+  layout holds the pixels.
 
 ### Documentation overhaul
 - **Fixed** broken doc cross-links (hyphenated filenames in `README.md`), removed dead links (`api-reference.md`, `tutorial.md`, `PRISM_gene_calling`), and corrected the pipeline flowchart — Spot Detection / Readout is now inside the PRISM stage and the diagram is drawn left-to-right.

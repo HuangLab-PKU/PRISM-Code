@@ -72,3 +72,11 @@ def test_legacy_preprocessing_numerical_parity(decoded,tmp_path):
  for key in ('SG','PURE_G_RATIO','SUM_THRESHOLD','G_THRESHOLD','colour_maxima','LABEL_TO_PROBE'):
   assert a[key]==b[key]
 
+
+
+def test_missing_qc_blocks_acceptance_without_replaying_numerical_stages(decoded):
+ cfg,rd,truth=decoded
+ figure=rd/'gene_calling_qc.png';payload=figure.read_bytes();figure.unlink()
+ try:
+  with pytest.raises(FileNotFoundError):main(['--config',str(cfg),'--stage','validate','--resume'])
+ finally:figure.write_bytes(payload)

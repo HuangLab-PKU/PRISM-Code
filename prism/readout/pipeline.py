@@ -16,6 +16,7 @@ Output files:
 """
 
 from pathlib import Path
+import re
 import numpy as np
 import pandas as pd
 import yaml
@@ -57,7 +58,7 @@ def _parse_cyc_chn(fname):
 def _open_plane(stc_dir, fname):
     if not (Path(stc_dir) / 'mosaic.ome.tif').exists() and not (Path(stc_dir) / 'mosaic.ome.zarr').exists():
         return tifffile.memmap(Path(stc_dir) / fname)
-    from spatial_img_core import mosaic_io
+    from prism.readout import mosaic as mosaic_io
     cyc, chn = _parse_cyc_chn(fname)
     return mosaic_io.open_mosaic(stc_dir, cyc, chn)
 
@@ -66,7 +67,7 @@ def _mosaic_shape_for(stc_dir, fname):
     if not (Path(stc_dir) / 'mosaic.ome.tif').exists() and not (Path(stc_dir) / 'mosaic.ome.zarr').exists():
         with tifffile.TiffFile(Path(stc_dir) / fname) as tif:
             return tif.pages[0].shape[-2:]
-    from spatial_img_core import mosaic_io
+    from prism.readout import mosaic as mosaic_io
     cyc, chn = _parse_cyc_chn(fname)
     return mosaic_io.mosaic_shape(stc_dir, cyc, chn)
 
@@ -166,7 +167,7 @@ def main(run_id, stc_dir, read_dir):
     Parameters
     ----------
     run_id : str
-        Run identifier (e.g. 20260201_WXC_ZJX_CRC_patient1_5um_2)
+        Run identifier (e.g. RUN_ID)
     stc_dir : Path
         Directory containing stitched images (cyc_1_channel.tif)
     read_dir : Path
@@ -414,6 +415,18 @@ def main(run_id, stc_dir, read_dir):
     logger.info(f"Saved parameters: {params_file}")
     
     logger.info("=" * 80)
+    from prism.qc import generate_readout_qc
+    from prism.qc.reports import image_metadata
+    image_shape, pixel_size = image_metadata(Path(stc_dir))
+    generate_readout_qc(
+        intensity_output_df, position_df, read_dir, run_id, CHANNELS,
+        img_shape=image_shape, pixel_size_um=pixel_size,
+        detection_counts={ch: len(channel_coords_dict.get(ch, ())) for ch in CHANNELS},
+        exact_unique=n_before_dedup,
+        acquired_cycles=sorted({int(match.group(1)) for name in CHANNEL_FILES
+                                if (match := re.match(r'cyc_(\d+)_', name))}),
+    )
+
     logger.info("Readout pipeline completed successfully!")
     logger.info(f"Output files:")
     logger.info(f"  - {position_file}")
@@ -449,4 +462,3 @@ def cli(argv=None):
 
 if __name__ == '__main__':
     raise SystemExit(cli())
-

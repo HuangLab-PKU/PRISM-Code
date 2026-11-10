@@ -458,6 +458,12 @@ class SignalClassificationPipeline:
                 data, confidence_threshold=confidence_threshold
             )
             result_df.to_csv(output_dir / "predictions.csv", index=False)
+            from prism.qc import generate_gene_calling_qc
+            generate_gene_calling_qc(
+                result_df, output_dir, Path(data_path).stem,
+                diagnostics=self.method.get_model_info(),
+            )
+
 
             # Save configuration
             with open(output_dir / "config.yaml", "w") as f:
