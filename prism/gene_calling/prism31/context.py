@@ -28,6 +28,13 @@ class RunContext:
     panel: dict
     classes: dict
     options: dict
+
+    @property
+    def work_dir(self):
+        path = self.run_dir / "processing" / "prism31"
+        if not path.exists() and (self.read_dir / "intensity_preprocessed.csv").is_file():
+            return self.read_dir  # Resume a legacy run in its original layout.
+        return path
     readout_config_dir: Path
 
 

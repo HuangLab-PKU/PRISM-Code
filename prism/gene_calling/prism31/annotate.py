@@ -18,11 +18,13 @@ def run(context):
     """Annotate calls using the explicit panel and keep unprinted controls."""
     RUN_ID = context.run_id
     read_dir = context.read_dir
+    work_dir = context.work_dir
+    work_dir.mkdir(parents=True, exist_ok=True)
     figure_dir = read_dir / 'figures'
     figure_dir.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({'font.family': 'Arial', 'text.usetex': False, 'figure.dpi': 300})
     BIN_PX = int(context.options.get('bin_px', 100))
-    with open(read_dir / 'params.yaml', 'r') as f:
+    with open(work_dir / 'params.yaml', 'r') as f:
         params = yaml.safe_load(f)
     GENOTYPE = params['GENOTYPE']
     GLAYER = params['GLAYER']
@@ -35,11 +37,11 @@ def run(context):
     CONFIDENCE_THRESHOLD = float(params.get('confidence_threshold', 0.8))
     N_LABELS = GLAYER * Q_NUM
     position = pd.read_csv(read_dir / 'position.csv')
-    labeled = pd.read_csv(read_dir / 'intensity_labeled.csv')
+    labeled = pd.read_csv(work_dir / 'intensity_labeled.csv')
     labeled = labeled.merge(position, on='index', how='left')
     labeled['probe'] = labeled['label'].map(LABEL_TO_PROBE)
     labeled['gene'] = labeled['label'].map(GENES)
-    pure_g = pd.read_csv(read_dir / 'intensity_G.csv')
+    pure_g = pd.read_csv(work_dir / 'intensity_G.csv')
     if 'index' not in pure_g.columns:
         pure_g = pure_g.rename(columns={pure_g.columns[0]: 'index'})
     pure_g = pure_g.merge(position, on='index', how='left')

@@ -22,6 +22,13 @@ OUTPUTS = {
 }
 
 
+INTERMEDIATE = ('intensity_preprocessed.csv', 'intensity_labeled.csv', 'intensity_G.csv', 'params.yaml')
+
+
+def product(ctx, name):
+    return (ctx.work_dir if name in INTERMEDIATE else ctx.read_dir) / name
+
+
 def save(path, value):
     tmp = path.with_suffix(path.suffix + '.tmp')
     tmp.write_text(json.dumps(value, indent=2, default=str), encoding='utf-8')
@@ -44,7 +51,7 @@ def identity(ctx, stage):
                 'gmm': list(OUTPUTS['preprocess']),
                 'annotate': ['position.csv', 'params.yaml', 'intensity_labeled.csv', 'intensity_G.csv'],
                 'validate': [n for s in STAGES[:-1] for n in OUTPUTS[s]]}[stage]
-    source = {name: pin(ctx.read_dir / name) for name in required}
+    source = {name: pin(product(ctx, name)) for name in required}
     if stage == 'readout':
         source['stitched'] = {p.name: pin(p) for p in sorted((ctx.run_dir / 'stitched').glob('*.tif'))}
         if not source['stitched'] and not (ctx.run_dir / 'stitched/mosaic.ome.zarr').is_dir():
@@ -165,10 +172,10 @@ def require_predecessors(ctx, stage, audit=False):
         if any(previous['identity'].get(k) != v for k, v in current_recipe.items()):
             raise ValueError(f'{stage}: predecessor {prior} recipe drift')
         for name in OUTPUTS[prior]:
-            if not (ctx.read_dir / name).is_file():
+            if not (product(ctx, name)).is_file():
                 raise FileNotFoundError(f'Missing predecessor output: {name}')
         if audit:
-            outputs = {name: pin(ctx.read_dir / name) for name in OUTPUTS[prior]}
+            outputs = {name: pin(product(ctx, name)) for name in OUTPUTS[prior]}
             if previous['identity'] != identity(ctx, prior) or previous['outputs'] != outputs:
                 raise ValueError(f'{stage}: predecessor {prior} recipe/input/output drift')
 
@@ -185,12 +192,12 @@ def execute(ctx, stage, resume=False, audit=False):
     before = identity(ctx, stage)
     if receipt.exists():
         previous = json.loads(receipt.read_text())
-        current = {name: pin(ctx.read_dir / name) for name in OUTPUTS[stage]}
+        current = {name: pin(product(ctx, name)) for name in OUTPUTS[stage]}
         if not resume or previous['identity'] != before or previous['outputs'] != current:
             raise ValueError(f'{stage}: existing receipt requires exact unchanged resume')
         print(f'SKIP verified {stage}', flush=True)
         return
-    if any((ctx.read_dir / name).exists() for name in OUTPUTS[stage]):
+    if any((product(ctx, name)).exists() for name in OUTPUTS[stage]):
         raise ValueError(f'{stage}: partial/unowned outputs require explicit recovery; refusing overwrite')
     print(f'START {ctx.run_id} {stage}', flush=True)
     started = time.time()
@@ -224,6 +231,8 @@ def execute(ctx, stage, resume=False, audit=False):
         run(ctx)
     elif stage == 'validate':
         validate(ctx, audit=audit)
+        from .density_delivery import publish_density
+        publish_density(ctx.read_dir, 'mapping_gmm.csv', [ctx.panel[p] for p in ctx.panel if ctx.classes[p] != 'unprinted'], ctx.run_id)
     else:
         raise ValueError(stage)
     if audit:
@@ -236,7 +245,7 @@ def execute(ctx, stage, resume=False, audit=False):
     if stage in ('readout', 'annotate'):
         from prism.qc import require_qc_artifacts
         require_qc_artifacts(ctx.read_dir, 'readout' if stage == 'readout' else 'gene_calling')
-    outputs = {name: pin(ctx.read_dir / name) for name in OUTPUTS[stage]}
+    outputs = {name: pin(product(ctx, name)) for name in OUTPUTS[stage]}
     save(receipt, {'stage': stage, 'identity': before, 'outputs': outputs,
                    'started': started, 'finished': time.time(), 'status': 'PASS',
                    'validation_mode': 'audit' if audit else 'routine'})

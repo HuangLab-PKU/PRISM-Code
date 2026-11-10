@@ -21,6 +21,8 @@ from ..prism46.colorspace import choose_g_layer_cuts
 
 def run(context):
     read_dir = context.read_dir
+    work_dir = context.work_dir
+    work_dir.mkdir(parents=True, exist_ok=True)
     figure_dir = read_dir / 'figures'
     figure_dir.mkdir(parents=True, exist_ok=True)
     PRISM_PANEL = 'PRISM31'
@@ -453,13 +455,13 @@ def run(context):
         "n_detected": int(_n_all + len(intensity_G)),
         "n_pure_g": int(len(intensity_G)),
     }
-    with open(read_dir/'params.yaml', 'w') as f:
+    with open(work_dir / 'params.yaml', 'w') as f:
         params['GENOTYPE'] = context.panel_id
         params['CLASSES'] = context.classes
         params['confidence_threshold'] = context.options.get('confidence_threshold', .8)
         yaml.safe_dump(plain(params), f, sort_keys=False)
 
-    intensity.to_csv(read_dir / 'intensity_preprocessed.csv')
-    intensity_G.to_csv(read_dir / 'intensity_G.csv')
+    intensity.to_csv(work_dir / 'intensity_preprocessed.csv')
+    intensity_G.to_csv(work_dir / 'intensity_G.csv')
     print(f'  wrote intensity_preprocessed.csv ({len(intensity):,} spots)', flush=True)
 
