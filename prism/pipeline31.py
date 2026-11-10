@@ -26,6 +26,10 @@ INTERMEDIATE = ('intensity_preprocessed.csv', 'intensity_labeled.csv', 'intensit
 
 
 def product(ctx, name):
+    if name == 'gene_counts.csv':
+        path = ctx.log_dir / name
+        legacy = ctx.read_dir / name
+        return legacy if not path.exists() and legacy.is_file() else path
     return (ctx.work_dir if name in INTERMEDIATE else ctx.read_dir) / name
 
 
@@ -62,7 +66,7 @@ def identity(ctx, stage):
             'config_sha256': digest(ctx.config_path), 'panel_sha256': digest(ctx.panel_path),
             'readout_config_sha256': digest(ctx.readout_config_dir / 'readout.yaml'),
             'code': code, 'inputs': source,
-            'readout_origin': 'shared_pipeline' if (ctx.read_dir / 'pipeline_records/readout.json').exists() or stage == 'readout' else 'external_tables'}
+            'readout_origin': 'shared_pipeline' if (ctx.log_dir / 'readout.json').exists() or stage == 'readout' else 'external_tables'}
 
 
 def validate_readout(ctx):
@@ -114,7 +118,7 @@ def validate(ctx, audit=False):
         return
     positions = validate_readout(ctx)
     calls = pd.read_csv(ctx.read_dir / 'mapping_gmm.csv', keep_default_na=False).rename(columns={'Gene': 'gene', 'Probability': 'confidence'})
-    counts = pd.read_csv(ctx.read_dir / 'gene_counts.csv', keep_default_na=False)
+    counts = pd.read_csv(product(ctx, 'gene_counts.csv'), keep_default_na=False)
     if not calls['index'].is_unique or not calls['index'].isin(positions['index']).all():
         raise ValueError('Calls have duplicate or unknown identities')
     xy = calls[['Y', 'X']].to_numpy(dtype=float)
@@ -155,7 +159,9 @@ def validate(ctx, audit=False):
 def require_predecessors(ctx, stage, audit=False):
     """Reject combining stage outputs made under different recipes or inputs."""
     for prior in STAGES[:STAGES.index(stage)]:
-        receipt = ctx.read_dir / 'pipeline_records' / f'{prior}.json'
+        receipt = ctx.log_dir / f'{prior}.json'
+        if not receipt.is_file():
+            receipt = ctx.read_dir / 'pipeline_records' / f'{prior}.json'
         # Explicit calling-only entry may import readout tables from another producer.
         # The preprocess receipt binds their actual identities from that point onward.
         if prior == 'readout' and not receipt.exists():
@@ -182,8 +188,8 @@ def require_predecessors(ctx, stage, audit=False):
 
 def execute(ctx, stage, resume=False, audit=False):
     ctx.read_dir.mkdir(parents=True, exist_ok=True)
-    records = ctx.read_dir / 'pipeline_records'
-    records.mkdir(exist_ok=True)
+    records = ctx.log_dir
+    records.mkdir(parents=True, exist_ok=True)
     receipt = records / f'{stage}.json'
     require_predecessors(ctx, stage, audit=audit)
     if stage == 'preprocess':

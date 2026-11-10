@@ -77,7 +77,7 @@ extra full-table read solely to verify already-computed routine numerical output
 PR31 writes its GMM assignment to mapping_gmm.csv. VIS writes mapping_postcode.csv.
 Both use index, Y, X, Gene and Probability. PR31 preserves its method-specific
 fields and missing confidence values. PR31 preprocessing tables are stored in
-processing/prism31/ alongside the readout directory.
+archive/prism31_intermediates/. Stage receipts and the per-gene count summary live in logs/prism31/.
 
 When a stitched mosaic is available, install the shared spatial-cells package
 in the pipeline environment. Both entries call its density, density QC and
