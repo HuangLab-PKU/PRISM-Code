@@ -37,7 +37,7 @@ def test_physical_slots_and_full_chain(decoded):
  cfg,rd,truth=decoded
  assert PROBE_GRADES[31]==(0,0,1,0) and build_label_to_probe()=={p:p for p in range(1,31)}
  params=yaml.safe_load((rd/'params.yaml').read_text());assert params['GLAYER']==2 and params['PURE_G_PROBE']==31 and params['SG']==3 and params['PURE_G_RATIO']==1
- calls=pd.read_csv(rd/'spots_called.csv').set_index('index');expected=truth.set_index('index').truth.reindex(calls.index);real=expected!=0
+ calls=pd.read_csv(rd/'mapping_gmm.csv').set_index('index');expected=truth.set_index('index').truth.reindex(calls.index);real=expected!=0
  assert (calls.loc[real,'probe']==expected[real]).mean()>.94
  assert (calls.probe==31).sum()>200
  counts=pd.read_csv(rd/'gene_counts.csv');assert len(counts)==31 and counts.n_spots.sum()==len(calls)

@@ -46,7 +46,7 @@ def main(argv=None):
         if report['input_rows']!=params['n_spots']:raise ValueError('QC/readout metadata count mismatch')
     if calling:
         if (rd/'vis_binary.lock').exists():raise ValueError('Active decode source; wait for actual producer exit before QC backfill')
-        candidates=[rd/'mapping_postcode.csv',rd/'spots_called.csv',rd/'predictions.csv']
+        candidates=[rd/'mapping_postcode.csv',rd/'mapping_gmm.csv',rd/'spots_called.csv',rd/'predictions.csv']
         source=next((f for f in candidates if f.is_file()),None)
         if source is None:raise FileNotFoundError('No accepted calling table to backfill')
         features=None

@@ -16,7 +16,7 @@ OUTPUTS = {
     'preprocess': ('params.yaml', 'intensity_preprocessed.csv', 'intensity_G.csv'),
     'gmm': ('intensity_labeled.csv', 'figures/layer_figures.yaml',
             *tuple(f'figures/{row}-layer{k}.png' for row in (1, 2) for k in (1, 2))),
-    'annotate': ('spots_called.csv', 'gene_counts.csv', 'calling_summary.yaml',
+    'annotate': ('mapping_gmm.csv', 'gene_counts.csv', 'calling_summary.yaml',
                  'gene_calling_qc.png', 'gene_calling_qc.json'),
     'validate': ('validation.json',),
 }
@@ -106,7 +106,7 @@ def validate(ctx, audit=False):
             'profile': 'prism31_legacy_v1', 'biological_specificity_validated': False})
         return
     positions = validate_readout(ctx)
-    calls = pd.read_csv(ctx.read_dir / 'spots_called.csv', keep_default_na=False)
+    calls = pd.read_csv(ctx.read_dir / 'mapping_gmm.csv', keep_default_na=False).rename(columns={'Gene': 'gene', 'Probability': 'confidence'})
     counts = pd.read_csv(ctx.read_dir / 'gene_counts.csv', keep_default_na=False)
     if not calls['index'].is_unique or not calls['index'].isin(positions['index']).all():
         raise ValueError('Calls have duplicate or unknown identities')
