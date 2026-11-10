@@ -38,6 +38,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `experiments/`.
 
 ### Added
+- A shared `python -m prism.pipeline` production entry for the explicit `prism46_v1`
+  profile, with package-owned readout, preprocessing, seeded GMM, annotation,
+  manual-gating figures, technical checks and source-bound stage receipts.
+- Complete panel CSV validation and explicit configuration replace filename-based
+  target inference. Later stages reject changed predecessor recipes and outputs.
+- Readout worker failures propagate; incomplete intensities are not filled with zero.
+  Loading a new readout config resets omitted settings instead of inheriting a prior batch.
+- Manual-gating colour-space exports now accompany the channel-space overview: one
+  scatter/density pair per layer at 800 x 700 pixels, with an exact pixel-coordinate
+  sidecar. These use all assigned spots rather than the overview subsample.
 - **Posterior-confidence QC for gene calling.** The GMM decoder's per-spot top-1 posterior
   is now surfaced as a decode-confidence score. `ClassificationResult.to_dataframe(...,
   confidence_threshold=t)` adds an `is_confident` column; `SignalClassificationPipeline`
@@ -47,20 +57,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `classification.confidence_threshold` (default `0.8`; set to `null` to disable). New
   `prism.gene_calling.confidence` module (`top1_confidence`, `confident_mask`) with unit
   tests in `tests/test_confidence.py`.
-- **Stitched mosaic input (OME-TIFF / OME-Zarr).** Current `spatial_img_core` stitching
-  writes one `stitched/mosaic.ome.tif` (finalized) or `stitched/mosaic.ome.zarr` (in
-  progress) instead of one `cyc_1_<channel>.tif` per channel, and `scripts/readout.py` /
-  `scripts/segment_dapi.py` could not open either. Both now read all three layouts. Configs
-  are unchanged: a channel is still named `cyc_1_cy5.tif`, and on a mosaic that name
-  selects cycle 1 / channel `cy5` inside it. When a mosaic and per-channel TIFFs are both
-  present, the mosaic is read. Blocks are read lazily from the compressed tiles, so the
-  whole plane is never loaded. New `prism.readout.mosaic` (a copy of
-  `sprintseq.readout.mosaic`; reads the format without depending on `spatial_img_core`)
-  and `prism.readout.stitched` (filename addressing on top). Needs the new `mosaic`
-  extra: `pip install -e ".[mosaic]"` (`zarr`, `imagecodecs`). Tests:
-  `tests/test_mosaic*.py`, `tests/test_stitched.py`, and
-  `tests/test_readout_layouts.py`, which checks that readout output is identical whichever
-  layout holds the pixels.
 
 ### Documentation overhaul
 - **Fixed** broken doc cross-links (hyphenated filenames in `README.md`), removed dead links (`api-reference.md`, `tutorial.md`, `PRISM_gene_calling`), and corrected the pipeline flowchart — Spot Detection / Readout is now inside the PRISM stage and the diagram is drawn left-to-right.
