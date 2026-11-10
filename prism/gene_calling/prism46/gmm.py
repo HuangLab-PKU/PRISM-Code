@@ -26,10 +26,12 @@ def run(context):
     """Fit seeded colour-grid mixtures and export all layer figures."""
     RUN_ID = context.run_id
     read_dir = context.read_dir
+    work_dir = getattr(context, 'work_dir', read_dir)
+    work_dir.mkdir(parents=True, exist_ok=True)
     figure_dir = read_dir / 'figures'
     figure_dir.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({'font.family': 'Arial', 'text.usetex': False, 'figure.dpi': 300})
-    with open(read_dir / 'params.yaml', 'r') as f:
+    with open(work_dir / 'params.yaml', 'r') as f:
         params = yaml.safe_load(f)
     GLAYER = params['GLAYER']
     Q_CHNS = params['Q_CHNS']
@@ -56,7 +58,7 @@ def run(context):
             return ''
         return _display_name(LABEL_TO_PROBE[label], GENES.get(label, ''))
     CONFIDENCE_THRESHOLD = float(params.get('confidence_threshold', 0.8))
-    intensity = pd.read_csv(read_dir / 'intensity_preprocessed.csv')
+    intensity = pd.read_csv(work_dir / 'intensity_preprocessed.csv')
     intensity['label'] = -1
     intensity['confidence'] = np.nan
     GMM_dict = dict()
@@ -134,5 +136,5 @@ def run(context):
     plt.tight_layout()
     plt.savefig(figure_dir / 'ColorSpace_GMM_confident.png', dpi=300)
     plt.close()
-    intensity.to_csv(read_dir / 'intensity_labeled.csv', index=False)
+    intensity.to_csv(work_dir / 'intensity_labeled.csv', index=False)
     print(f'  wrote intensity_labeled.csv ({len(intensity):,} spots)', flush=True)

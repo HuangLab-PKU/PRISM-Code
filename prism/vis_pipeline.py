@@ -27,6 +27,8 @@ def qc_from_numerical_checkpoint(rd,cfg,rid,panel,config_path):
  if q['input_rows']!=receipt['n_detected'] or observed.get('Background',0)!=receipt['n_background'] or sum(observed.get(g,0) for g in panel.gene)!=receipt['n_called']:raise ValueError('QC-only calling counts changed')
  if len(counts)!=len(panel) or counts.set_index('gene').n_spots.to_dict()!={g:observed.get(g,0) for g in panel.gene}:raise ValueError('QC-only per-gene counts changed')
  require_qc_artifacts(rd,'readout',expected_rows=receipt['n_detected']);require_qc_artifacts(rd,'gene_calling',expected_rows=q['input_rows'])
+ from .density_delivery import publish_density
+ publish_density(rd,'mapping_postcode.csv',panel.gene.tolist(),rid)
  save(rd/'binary_validation.json',{**receipt,'status':'ROUTINE_OUTPUT_CHECKS_PASSED','qc_required':True,'qc_only_recovery':True});return 0
 
 
@@ -69,6 +71,8 @@ def main(argv=None):
   generate_gene_calling_qc(result,rd,rid,diagnostics=model,features=panel.gene.tolist(),detected_spots=len(position),img_shape=shape,pixel_size_um=pixel)
   require_qc_artifacts(rd,'readout',expected_rows=len(position))
   require_qc_artifacts(rd,'gene_calling',expected_rows=len(result))
+  from .density_delivery import publish_density
+  publish_density(rd,'mapping_postcode.csv',panel.gene.tolist(),rid)
   receipt['qc_required']=True
   save(rd/'binary_validation.json',receipt);print(json.dumps(receipt),flush=True)
  except BaseException:
