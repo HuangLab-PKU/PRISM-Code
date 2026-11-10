@@ -84,3 +84,6 @@ in the pipeline environment. Both entries call its density, density QC and
 Thermal ImageJ stack writers after classification. The default readout products
 are density_Q20/, density_Q20_qc.json, density_Q20_qc.png and density_Q20_all.tif.
 The threshold is strictly P > 0.99 for target genes with reported confidence.
+
+PR31 supports an optional calling.gmm_max_shift_fraction in [0, 0.5). It selects an isotropic mixture in the projected colour plane. Each centre is bounded by that fraction of the distance to its nearest codebook neighbour. Component abundances are learned. The original fit remains available when the option is omitted. Qualify the fraction against held-out spatial regions and the observed colour distribution.
+

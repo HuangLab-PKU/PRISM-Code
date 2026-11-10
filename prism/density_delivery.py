@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 
 
-def publish_density(readout, mapping, genes, run_id):
+def publish_density(readout, mapping, genes, run_id, *, stitched=None):
     from .readout.mosaic import list_mosaics
     readout = Path(readout)
-    stitched = readout.parent / "stitched"
+    stitched = Path(stitched) if stitched is not None else readout.parent / "stitched"
     if not stitched.is_dir() or not list_mosaics(stitched):
         return  # Imported tables can be classified without a spatial canvas.
     from spatial_cells.maps.density import generate_density_maps, get_stitched_shape

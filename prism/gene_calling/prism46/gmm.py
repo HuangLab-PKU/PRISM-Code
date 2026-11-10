@@ -69,7 +69,22 @@ def run(context):
             print(f'  layer={layer}: only {len(filtered_data)} samples (< {len(centroids_init)} components); skipping GMM, labels stay -1', flush=True)
             continue
         reduced_features = filtered_data[Q_CHNS]
-        gmm, gmm_labels, gmm_conf = apply_gmm(reduced_features, num_clusters=len(centroids_init), means_init=centroids_init)
+        limit = context.options.get("gmm_max_shift_fraction")
+        if limit is None:
+            gmm, gmm_labels, gmm_conf = apply_gmm(
+                reduced_features, num_clusters=len(centroids_init), means_init=centroids_init)
+        else:
+            from ..prism31.anchored import AnchoredMixture
+            projection = np.concatenate([CD_1_proj, CD_2_proj], axis=1)
+            xy = reduced_features.to_numpy() @ projection
+            sample = filtered_data["index"].to_numpy() % 127 == 0
+            fit_xy = xy[sample] if sample.sum() >= 1000 else xy
+            gmm = AnchoredMixture(centroids_init @ projection, limit).fit(fit_xy)
+            gmm_labels = np.empty(len(xy), dtype=int)
+            gmm_conf = np.empty(len(xy))
+            for start in range(0, len(xy), 350000):
+                section = slice(start, start + 350000)
+                gmm_labels[section], gmm_conf[section], _ = gmm.classify(xy[section])
         GMM_dict[layer] = gmm
         intensity.loc[filtered_data.index, 'label'] = gmm_labels + int(layer * Q_NUM + 1)
         intensity.loc[filtered_data.index, 'confidence'] = gmm_conf
