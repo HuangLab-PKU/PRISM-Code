@@ -16,10 +16,21 @@ OUTPUTS = {
     'preprocess': ('params.yaml', 'intensity_preprocessed.csv', 'intensity_G.csv'),
     'gmm': ('intensity_labeled.csv', 'figures/layer_figures.yaml',
             *tuple(f'figures/{row}-layer{k}.png' for row in (1, 2) for k in (1, 2))),
-    'annotate': ('spots_called.csv', 'gene_counts.csv', 'calling_summary.yaml',
+    'annotate': ('mapping_gmm.csv', 'gene_counts.csv', 'calling_summary.yaml',
                  'gene_calling_qc.png', 'gene_calling_qc.json'),
     'validate': ('validation.json',),
 }
+
+
+INTERMEDIATE = ('intensity_preprocessed.csv', 'intensity_labeled.csv', 'intensity_G.csv', 'params.yaml')
+
+
+def product(ctx, name):
+    if name == 'gene_counts.csv':
+        path = ctx.log_dir / name
+        legacy = ctx.read_dir / name
+        return legacy if not path.exists() and legacy.is_file() else path
+    return (ctx.work_dir if name in INTERMEDIATE else ctx.read_dir) / name
 
 
 def save(path, value):
@@ -44,7 +55,7 @@ def identity(ctx, stage):
                 'gmm': list(OUTPUTS['preprocess']),
                 'annotate': ['position.csv', 'params.yaml', 'intensity_labeled.csv', 'intensity_G.csv'],
                 'validate': [n for s in STAGES[:-1] for n in OUTPUTS[s]]}[stage]
-    source = {name: pin(ctx.read_dir / name) for name in required}
+    source = {name: pin(product(ctx, name)) for name in required}
     if stage == 'readout':
         source['stitched'] = {p.name: pin(p) for p in sorted((ctx.run_dir / 'stitched').glob('*.tif'))}
         if not source['stitched'] and not (ctx.run_dir / 'stitched/mosaic.ome.zarr').is_dir():
@@ -55,7 +66,7 @@ def identity(ctx, stage):
             'config_sha256': digest(ctx.config_path), 'panel_sha256': digest(ctx.panel_path),
             'readout_config_sha256': digest(ctx.readout_config_dir / 'readout.yaml'),
             'code': code, 'inputs': source,
-            'readout_origin': 'shared_pipeline' if (ctx.read_dir / 'pipeline_records/readout.json').exists() or stage == 'readout' else 'external_tables'}
+            'readout_origin': 'shared_pipeline' if (ctx.log_dir / 'readout.json').exists() or stage == 'readout' else 'external_tables'}
 
 
 def validate_readout(ctx):
@@ -106,8 +117,8 @@ def validate(ctx, audit=False):
             'profile': 'prism31_legacy_v1', 'biological_specificity_validated': False})
         return
     positions = validate_readout(ctx)
-    calls = pd.read_csv(ctx.read_dir / 'spots_called.csv', keep_default_na=False)
-    counts = pd.read_csv(ctx.read_dir / 'gene_counts.csv', keep_default_na=False)
+    calls = pd.read_csv(ctx.read_dir / 'mapping_gmm.csv', keep_default_na=False).rename(columns={'Gene': 'gene', 'Probability': 'confidence'})
+    counts = pd.read_csv(product(ctx, 'gene_counts.csv'), keep_default_na=False)
     if not calls['index'].is_unique or not calls['index'].isin(positions['index']).all():
         raise ValueError('Calls have duplicate or unknown identities')
     xy = calls[['Y', 'X']].to_numpy(dtype=float)
@@ -148,7 +159,9 @@ def validate(ctx, audit=False):
 def require_predecessors(ctx, stage, audit=False):
     """Reject combining stage outputs made under different recipes or inputs."""
     for prior in STAGES[:STAGES.index(stage)]:
-        receipt = ctx.read_dir / 'pipeline_records' / f'{prior}.json'
+        receipt = ctx.log_dir / f'{prior}.json'
+        if not receipt.is_file():
+            receipt = ctx.read_dir / 'pipeline_records' / f'{prior}.json'
         # Explicit calling-only entry may import readout tables from another producer.
         # The preprocess receipt binds their actual identities from that point onward.
         if prior == 'readout' and not receipt.exists():
@@ -165,18 +178,18 @@ def require_predecessors(ctx, stage, audit=False):
         if any(previous['identity'].get(k) != v for k, v in current_recipe.items()):
             raise ValueError(f'{stage}: predecessor {prior} recipe drift')
         for name in OUTPUTS[prior]:
-            if not (ctx.read_dir / name).is_file():
+            if not (product(ctx, name)).is_file():
                 raise FileNotFoundError(f'Missing predecessor output: {name}')
         if audit:
-            outputs = {name: pin(ctx.read_dir / name) for name in OUTPUTS[prior]}
+            outputs = {name: pin(product(ctx, name)) for name in OUTPUTS[prior]}
             if previous['identity'] != identity(ctx, prior) or previous['outputs'] != outputs:
                 raise ValueError(f'{stage}: predecessor {prior} recipe/input/output drift')
 
 
 def execute(ctx, stage, resume=False, audit=False):
     ctx.read_dir.mkdir(parents=True, exist_ok=True)
-    records = ctx.read_dir / 'pipeline_records'
-    records.mkdir(exist_ok=True)
+    records = ctx.log_dir
+    records.mkdir(parents=True, exist_ok=True)
     receipt = records / f'{stage}.json'
     require_predecessors(ctx, stage, audit=audit)
     if stage == 'preprocess':
@@ -185,12 +198,12 @@ def execute(ctx, stage, resume=False, audit=False):
     before = identity(ctx, stage)
     if receipt.exists():
         previous = json.loads(receipt.read_text())
-        current = {name: pin(ctx.read_dir / name) for name in OUTPUTS[stage]}
+        current = {name: pin(product(ctx, name)) for name in OUTPUTS[stage]}
         if not resume or previous['identity'] != before or previous['outputs'] != current:
             raise ValueError(f'{stage}: existing receipt requires exact unchanged resume')
         print(f'SKIP verified {stage}', flush=True)
         return
-    if any((ctx.read_dir / name).exists() for name in OUTPUTS[stage]):
+    if any((product(ctx, name)).exists() for name in OUTPUTS[stage]):
         raise ValueError(f'{stage}: partial/unowned outputs require explicit recovery; refusing overwrite')
     print(f'START {ctx.run_id} {stage}', flush=True)
     started = time.time()
@@ -224,6 +237,8 @@ def execute(ctx, stage, resume=False, audit=False):
         run(ctx)
     elif stage == 'validate':
         validate(ctx, audit=audit)
+        from .density_delivery import publish_density
+        publish_density(ctx.read_dir, 'mapping_gmm.csv', [ctx.panel[p] for p in ctx.panel if ctx.classes[p] != 'unprinted'], ctx.run_id)
     else:
         raise ValueError(stage)
     if audit:
@@ -236,7 +251,7 @@ def execute(ctx, stage, resume=False, audit=False):
     if stage in ('readout', 'annotate'):
         from prism.qc import require_qc_artifacts
         require_qc_artifacts(ctx.read_dir, 'readout' if stage == 'readout' else 'gene_calling')
-    outputs = {name: pin(ctx.read_dir / name) for name in OUTPUTS[stage]}
+    outputs = {name: pin(product(ctx, name)) for name in OUTPUTS[stage]}
     save(receipt, {'stage': stage, 'identity': before, 'outputs': outputs,
                    'started': started, 'finished': time.time(), 'status': 'PASS',
                    'validation_mode': 'audit' if audit else 'routine'})

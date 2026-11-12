@@ -46,7 +46,7 @@ def main(argv=None):
         if report['input_rows']!=params['n_spots']:raise ValueError('QC/readout metadata count mismatch')
     if calling:
         if (rd/'vis_binary.lock').exists():raise ValueError('Active decode source; wait for actual producer exit before QC backfill')
-        candidates=[rd/'mapping_postcode.csv',rd/'spots_called.csv',rd/'predictions.csv']
+        candidates=[rd/'mapping_postcode.csv',rd/'mapping_gmm.csv',rd/'spots_called.csv',rd/'predictions.csv']
         source=next((f for f in candidates if f.is_file()),None)
         if source is None:raise FileNotFoundError('No accepted calling table to backfill')
         features=None
@@ -56,6 +56,7 @@ def main(argv=None):
         model=rd/'binary_model.json'
         if model.exists():diagnostics=json.loads(model.read_text())
         counts=rd/'gene_counts.csv'
+        if not counts.exists():counts=run/'logs/prism31/gene_counts.csv'
         if counts.exists():
             frame=pd.read_csv(counts,keep_default_na=False)
             col='gene' if 'gene' in frame else 'Gene' if 'Gene' in frame else None

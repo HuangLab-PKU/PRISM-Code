@@ -36,19 +36,19 @@ def decoded(tmp_path_factory):
 def test_physical_slots_and_full_chain(decoded):
  cfg,rd,truth=decoded
  assert PROBE_GRADES[31]==(0,0,1,0) and build_label_to_probe()=={p:p for p in range(1,31)}
- params=yaml.safe_load((rd/'params.yaml').read_text());assert params['GLAYER']==2 and params['PURE_G_PROBE']==31 and params['SG']==3 and params['PURE_G_RATIO']==1
- calls=pd.read_csv(rd/'spots_called.csv').set_index('index');expected=truth.set_index('index').truth.reindex(calls.index);real=expected!=0
+ params=yaml.safe_load((rd.parent/'archive/prism31_intermediates/params.yaml').read_text());assert params['GLAYER']==2 and params['PURE_G_PROBE']==31 and params['SG']==3 and params['PURE_G_RATIO']==1
+ calls=pd.read_csv(rd/'mapping_gmm.csv').set_index('index');expected=truth.set_index('index').truth.reindex(calls.index);real=expected!=0
  assert (calls.loc[real,'probe']==expected[real]).mean()>.94
  assert (calls.probe==31).sum()>200
- counts=pd.read_csv(rd/'gene_counts.csv');assert len(counts)==31 and counts.n_spots.sum()==len(calls)
+ counts=pd.read_csv(rd.parent/'logs/prism31/gene_counts.csv');assert len(counts)==31 and counts.n_spots.sum()==len(calls)
  result=json.loads((rd/'validation.json').read_text());assert result['profile']=='prism31_legacy_v1' and result['printed_slots']==31
  for row in (1,2):
   for layer in (1,2):assert (rd/f'figures/{row}-layer{layer}.png').is_file()
  assert not (rd/'figures/1-layer3.png').exists()
 
 def test_unchanged_resume_and_panel_drift(decoded):
- cfg,rd,_=decoded;stamp=(rd/'intensity_preprocessed.csv').stat().st_mtime_ns
- main(['--config',str(cfg),'--stage','preprocess','--resume']);assert stamp==(rd/'intensity_preprocessed.csv').stat().st_mtime_ns
+ cfg,rd,_=decoded;stamp=(rd.parent/'archive/prism31_intermediates/intensity_preprocessed.csv').stat().st_mtime_ns
+ main(['--config',str(cfg),'--stage','preprocess','--resume']);assert stamp==(rd.parent/'archive/prism31_intermediates/intensity_preprocessed.csv').stat().st_mtime_ns
  panel=cfg.parent/'panel.csv';raw=panel.read_bytes()
  try:
   panel.write_bytes(raw.replace(b'Target1,',b'Changed1,'))
@@ -67,8 +67,8 @@ def test_legacy_preprocessing_numerical_parity(decoded,tmp_path):
  result=subprocess.run([sys.executable,'-B',str(Path(legacy)/'gene_calling_1_preprocess.py'),'SYNTHETIC_PR31'],cwd='C:/',env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=240)
  assert result.returncode==0,result.stdout.decode(errors='replace')[-4000:]
  for name in ('intensity_preprocessed.csv','intensity_G.csv'):
-  a=pd.read_csv(rd/name);b=pd.read_csv(old_rd/name);pd.testing.assert_frame_equal(a.drop(columns=['G_layer'],errors='ignore'),b.drop(columns=['G_layer'],errors='ignore'),rtol=1e-12,atol=1e-12)
- a=yaml.safe_load((rd/'params.yaml').read_text());b=yaml.unsafe_load((old_rd/'params.yaml').read_text())
+  a=pd.read_csv(rd.parent/'archive/prism31_intermediates'/name);b=pd.read_csv(old_rd/name);pd.testing.assert_frame_equal(a.drop(columns=['G_layer'],errors='ignore'),b.drop(columns=['G_layer'],errors='ignore'),rtol=1e-12,atol=1e-12)
+ a=yaml.safe_load((rd.parent/'archive/prism31_intermediates/params.yaml').read_text());b=yaml.unsafe_load((old_rd/'params.yaml').read_text())
  for key in ('SG','PURE_G_RATIO','SUM_THRESHOLD','G_THRESHOLD','colour_maxima','LABEL_TO_PROBE'):
   assert a[key]==b[key]
 

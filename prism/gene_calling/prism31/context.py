@@ -28,6 +28,20 @@ class RunContext:
     panel: dict
     classes: dict
     options: dict
+
+    @property
+    def log_dir(self):
+        return self.run_dir / "logs" / "prism31"
+
+    @property
+    def work_dir(self):
+        path = self.run_dir / "archive" / "prism31_intermediates"
+        previous = self.run_dir / "processing" / "prism31"
+        if not path.exists() and previous.is_dir():
+            return previous
+        if not path.exists() and (self.read_dir / "intensity_preprocessed.csv").is_file():
+            return self.read_dir  # Resume a legacy run in its original layout.
+        return path
     readout_config_dir: Path
 
 
@@ -58,8 +72,11 @@ def load_context(config_path):
     if not ((table['class'] == 'unprinted') == (table['gene'] == '-')).all():
         raise ValueError('Unprinted slots must have gene -, printed slots must have a name')
     options = cfg.get('calling', {})
-    if set(options) - {'sg', 'pure_g_ratio', 'confidence_threshold', 'bin_px'}:
+    if set(options) - {'sg', 'pure_g_ratio', 'confidence_threshold', 'bin_px', 'gmm_max_shift_fraction'}:
         raise ValueError('Unsupported calling override')
+    limit = options.get('gmm_max_shift_fraction')
+    if limit is not None and not 0 <= float(limit) < .5:
+        raise ValueError('gmm_max_shift_fraction must be in [0, 0.5)')
     for key in ('sg', 'pure_g_ratio', 'bin_px'):
         if key in options and (not np.isfinite(options[key]) or options[key] <= 0):
             raise ValueError(f'{key} must be finite and positive')

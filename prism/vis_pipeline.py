@@ -27,6 +27,8 @@ def qc_from_numerical_checkpoint(rd,cfg,rid,panel,config_path):
  if q['input_rows']!=receipt['n_detected'] or observed.get('Background',0)!=receipt['n_background'] or sum(observed.get(g,0) for g in panel.gene)!=receipt['n_called']:raise ValueError('QC-only calling counts changed')
  if len(counts)!=len(panel) or counts.set_index('gene').n_spots.to_dict()!={g:observed.get(g,0) for g in panel.gene}:raise ValueError('QC-only per-gene counts changed')
  require_qc_artifacts(rd,'readout',expected_rows=receipt['n_detected']);require_qc_artifacts(rd,'gene_calling',expected_rows=q['input_rows'])
+ from .density_delivery import publish_density
+ publish_density(rd,'mapping_postcode.csv',panel.gene.tolist(),rid)
  save(rd/'binary_validation.json',{**receipt,'status':'ROUTINE_OUTPUT_CHECKS_PASSED','qc_required':True,'qc_only_recovery':True});return 0
 
 
@@ -41,7 +43,7 @@ def main(argv=None):
  if set(panel.columns)!={'gene','code_id','bits'} or len(panel)!=31 or not panel.gene.is_unique or set(panel.bits)!={f'{i:05b}' for i in range(1,32)}:raise ValueError('Expected exactly31 distinct nonzero five-bit gene assignments')
  rd=Path(cfg['base_dir'])/(rid+'_processed')/'readout';rd.mkdir(parents=True,exist_ok=True)
  if args.qc_only:return qc_from_numerical_checkpoint(rd,cfg,rid,panel,args.config)
- outputs=['mapping_postcode.csv','mapped_genes.csv','gene_counts.csv','binary_model.json','binary_validation.json']
+ outputs=['mapping_postcode.csv','gene_counts.csv','binary_model.json','binary_validation.json']
  if any((rd/n).exists() for n in outputs):raise ValueError('Existing decode outputs require inspected checkpoint recovery')
  lock=rd/'vis_binary.lock'
  with lock.open('x',encoding='utf8') as f:json.dump({'pid':os.getpid(),'run_id':rid},f)
@@ -53,15 +55,15 @@ def main(argv=None):
   ensure_readout_qc(rd,rid,intensity=intensity,positions=position,channels=channels,acquired_cycles=cycles)
   bits=np.asarray([[int(x) for x in word] for word in panel.bits],dtype=np.float32)[:,:,None]
   values=intensity[channels].to_numpy(dtype=np.float32)[:,:,None]
-  result,model=decode(values,bits,panel.gene.tolist(),panel.bits.tolist(),num_iter=int(cfg.get('num_iter',100)),batch_size=int(cfg.get('batch_size',100000)),inference_chunk_size=int(cfg.get('inference_chunk_size',100000)),background_prior=cfg.get('background_prior'))
+  result,model=decode(values,bits,panel.gene.tolist(),panel.bits.tolist(),num_iter=int(cfg.get('num_iter',100)),batch_size=int(cfg.get('batch_size',100000)),inference_chunk_size=int(cfg.get('inference_chunk_size',100000)),background_prior=cfg.get('background_prior'),log_brightness_variance=float(cfg.get('log_brightness_variance',0.)))
   result['index']=position['index'].to_numpy();result['Y']=position.Y.to_numpy();result['X']=position.X.to_numpy()
   if len(result)!=len(position) or not np.isfinite(result[['Probability','Probability_2','Entropy']].to_numpy()).all():raise ValueError('Invalid decoder handoff')
-  result.to_csv(rd/'mapping_postcode.csv',index=False);result[['index','Y','X','Gene','Probability']].to_csv(rd/'mapped_genes.csv',index=False)
+  result.to_csv(rd/'mapping_postcode.csv',index=False)
   counts=result.Gene.value_counts();summary=panel.copy();summary['n_spots']=[int(counts.get(g,0)) for g in panel.gene];summary.to_csv(rd/'gene_counts.csv',index=False)
   save(rd/'binary_model.json',model)
   receipt={'status':'ROUTINE_OUTPUT_CHECKS_PASSED','run_id':rid,'profile':cfg['profile'],'cycle':cycles[0],'informative_bits':5,'channels':channels,'panel_size':31,'n_detected':len(result),'n_background':int(counts.get('Background',0)),'n_called':int(summary.n_spots.sum()),'minimum_hamming':1,'error_correction':False,'posterior_is_calibrated_error_rate':False,'phasing_correction':False,'config_sha256':hashlib.sha256(args.config.read_bytes()).hexdigest(),'panel_sha256':hashlib.sha256(Path(cfg['panel']).read_bytes()).hexdigest(),'at':time.time()}
   if receipt['n_background']+receipt['n_called']!=len(result):raise ValueError('Count conservation failed')
-  receipt['numerical_products']={name:[(rd/name).stat().st_size,(rd/name).stat().st_mtime_ns] for name in ['mapping_postcode.csv','mapped_genes.csv','gene_counts.csv','binary_model.json']}
+  receipt['numerical_products']={name:[(rd/name).stat().st_size,(rd/name).stat().st_mtime_ns] for name in ['mapping_postcode.csv','gene_counts.csv','binary_model.json']}
   save(rd/'binary_numerical_receipt.json',{**receipt,'status':'NUMERICAL_OUTPUTS_CHECKED_QC_PENDING'})
   from prism.qc import generate_gene_calling_qc, require_qc_artifacts
   from prism.qc.reports import image_metadata
@@ -69,6 +71,8 @@ def main(argv=None):
   generate_gene_calling_qc(result,rd,rid,diagnostics=model,features=panel.gene.tolist(),detected_spots=len(position),img_shape=shape,pixel_size_um=pixel)
   require_qc_artifacts(rd,'readout',expected_rows=len(position))
   require_qc_artifacts(rd,'gene_calling',expected_rows=len(result))
+  from .density_delivery import publish_density
+  publish_density(rd,'mapping_postcode.csv',panel.gene.tolist(),rid)
   receipt['qc_required']=True
   save(rd/'binary_validation.json',receipt);print(json.dumps(receipt),flush=True)
  except BaseException:

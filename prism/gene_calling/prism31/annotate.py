@@ -18,11 +18,13 @@ def run(context):
     """Annotate calls using the explicit panel and keep unprinted controls."""
     RUN_ID = context.run_id
     read_dir = context.read_dir
+    work_dir = context.work_dir
+    work_dir.mkdir(parents=True, exist_ok=True)
     figure_dir = read_dir / 'figures'
     figure_dir.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({'font.family': 'Arial', 'text.usetex': False, 'figure.dpi': 300})
     BIN_PX = int(context.options.get('bin_px', 100))
-    with open(read_dir / 'params.yaml', 'r') as f:
+    with open(work_dir / 'params.yaml', 'r') as f:
         params = yaml.safe_load(f)
     GENOTYPE = params['GENOTYPE']
     GLAYER = params['GLAYER']
@@ -35,11 +37,11 @@ def run(context):
     CONFIDENCE_THRESHOLD = float(params.get('confidence_threshold', 0.8))
     N_LABELS = GLAYER * Q_NUM
     position = pd.read_csv(read_dir / 'position.csv')
-    labeled = pd.read_csv(read_dir / 'intensity_labeled.csv')
+    labeled = pd.read_csv(work_dir / 'intensity_labeled.csv')
     labeled = labeled.merge(position, on='index', how='left')
     labeled['probe'] = labeled['label'].map(LABEL_TO_PROBE)
     labeled['gene'] = labeled['label'].map(GENES)
-    pure_g = pd.read_csv(read_dir / 'intensity_G.csv')
+    pure_g = pd.read_csv(work_dir / 'intensity_G.csv')
     if 'index' not in pure_g.columns:
         pure_g = pure_g.rename(columns={pure_g.columns[0]: 'index'})
     pure_g = pure_g.merge(position, on='index', how='left')
@@ -70,7 +72,8 @@ def run(context):
         _rec['pct_of_grid_calls'] = round(100.0 * _rec['n_spots'] / _n_grid_calls, 3) if _rec['probe'] <= N_LABELS else None
     summary_df = pd.DataFrame(per_probe).T
     summary_df.index.name = 'code'
-    summary_df.to_csv(read_dir / 'gene_counts.csv')
+    context.log_dir.mkdir(parents=True, exist_ok=True)
+    summary_df.to_csv(context.log_dir / 'gene_counts.csv')
     print('\n  ' + summary_df[['probe', 'name', 'gene', 'class', 'n_spots', 'pct_of_calls', 'n_confident', 'median_confidence']].to_string().replace('\n', '\n  '))
     _grid_calls = called[called['probe'] <= N_LABELS]
     _unprinted = [p for p in PANEL if p <= N_LABELS and CLASSES[p] == 'unprinted']
@@ -163,8 +166,8 @@ def run(context):
     plt.savefig(figure_dir / 'spatial_genes.png', dpi=200, bbox_inches='tight')
     plt.close()
     out_cols = [c for c in ('index', 'Y', 'X', 'gene', 'probe', 'label', 'confidence', 'G_layer', 'sum', 'R', 'Ye', 'G', 'B') if c in called.columns]
-    called[out_cols].to_csv(read_dir / 'spots_called.csv', index=False)
-    print(f'\n  wrote spots_called.csv ({len(called):,} calls)')
+    called[out_cols].rename(columns={'gene': 'Gene', 'confidence': 'Probability'}).to_csv(read_dir / 'mapping_gmm.csv', index=False)
+    print(f'\n  wrote mapping_gmm.csv ({len(called):,} calls)')
     _counts = np.array([per_probe[code_tag(p)]['n_spots'] for p in probes], dtype=float)
     _share = _counts / max(_counts.sum(), 1)
     summary = {'RUN_ID': RUN_ID, 'genotype': GENOTYPE, 'panel': params['PRISM_PANEL'], 'n_probes': len(PANEL), 'n_printed': sum((c != 'unprinted' for c in CLASSES.values())), 'SG': params.get('SG'), 'SUM_THRESHOLD': params.get('SUM_THRESHOLD'), 'G_THRESHOLD': params.get('G_THRESHOLD'), 'PURE_G_RATIO': params.get('PURE_G_RATIO'), 'G_layer_cuts': params.get('G_layer_cuts'), 'confidence_threshold': CONFIDENCE_THRESHOLD, 'n_detected': params.get('n_detected'), 'n_colour_path': n_pre, 'n_assigned': n_called, 'n_confident': n_conf, 'n_pure_g': int(len(pure_g)), 'n_calls_total': int(len(called)), 'unprinted_probes': [int(p) for p in _unprinted], 'unprinted_calls': _unprinted_n, 'unprinted_share_pct': round(_unprinted_share, 3), 'per_unprinted_share_pct': round(_per_unprinted, 4), 'printed_at_or_below_unprinted_floor': [f'{code_tag(p)}:{PANEL[p]}' for p in _below], 'leakage_by_fam_grade': [{'probe': int(pr), 'grades_ye_b_r': [int(ye), int(b), int(r)], 'pct_of_grid_calls': sh} for _f, pr, ye, b, r, sh in _leak], 'leakage_rises_with_fam_grade': bool(_leak_monotonic), 'leakage_mean_share_by_fam_grade': {int(f): round(sum(v) / len(v), 4) for f, v in sorted(_by_fam.items())}, 'top_probe_share_pct': round(100.0 * float(_share.max()), 2), 'top_probe': code_tag(probes[int(_share.argmax())]), 'per_probe': per_probe}
