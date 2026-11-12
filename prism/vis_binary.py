@@ -10,7 +10,28 @@ import pandas as pd
 from tqdm import tqdm
 logger=logging.getLogger(__name__)
 
-def decode(spots,barcodes_01,gene_list,code_list,num_iter=100,batch_size=100000,inference_chunk_size=100000,verbose=True,background_prior=None):
+def brightness_covariances(covariance, codes, log_std, weights, variance):
+    """Distribute shared log10 brightness variation across the on bits of each code.
+
+    Keep the prior-weighted covariance equal to the training covariance.
+    The all-dark background has no common on-bit signal.
+    """
+    import torch
+
+    if not np.isfinite(variance) or variance < 0:
+        raise ValueError("log_brightness_variance must be finite and nonnegative")
+    if variance == 0:
+        return covariance
+    directions = codes / log_std.reshape(1, -1)
+    outer = directions.unsqueeze(-1) * directions.unsqueeze(-2)
+    mean_outer = (outer * (weights / weights.sum())[:, None, None]).sum(dim=0)
+    result = covariance + variance * (outer - mean_outer)
+    if torch.any(torch.linalg.cholesky_ex(result).info != 0):
+        raise ValueError("log_brightness_variance exceeds the fitted covariance budget")
+    return result
+
+
+def decode(spots,barcodes_01,gene_list,code_list,num_iter=100,batch_size=100000,inference_chunk_size=100000,verbose=True,background_prior=None,log_brightness_variance=0.):
     spots=np.asarray(spots,dtype=np.float32)
     barcodes_01=np.asarray(barcodes_01,dtype=np.float32)
     if spots.ndim!=3 or spots.shape[1:]!=(5,1) or barcodes_01.shape!=(31,5,1):
@@ -23,6 +44,8 @@ def decode(spots,barcodes_01,gene_list,code_list,num_iter=100,batch_size=100000,
         raise ValueError('Expected31 unique target assignments')
     if background_prior is not None and not 0<background_prior<1:
         raise ValueError('Invalid explicit background prior')
+    if not np.isfinite(log_brightness_variance) or log_brightness_variance < 0:
+        raise ValueError('log_brightness_variance must be finite and nonnegative')
     import torch
     import pyro
     from pyro.infer import SVI, TraceEnum_ELBO
@@ -145,6 +168,9 @@ def decode(spots,barcodes_01,gene_list,code_list,num_iter=100,batch_size=100000,
     res_entropy = np.zeros(N, dtype=float)
     n_chunks = (N + inference_chunk_size - 1) // inference_chunk_size
 
+    inference_cov = brightness_covariances(
+        sigma_star, codes, data_log_std, w_star_final, log_brightness_variance)
+    dist = torch.distributions.MultivariateNormal(theta_final, inference_cov)
     for i in tqdm(range(n_chunks), desc="Inference", disable=not verbose):
         a = i * inference_chunk_size
         b = min((i + 1) * inference_chunk_size, N)
@@ -153,7 +179,6 @@ def decode(spots,barcodes_01,gene_list,code_list,num_iter=100,batch_size=100000,
             chunk_data = chunk_data.cuda()
         chunk_norm = (torch.log10(chunk_data + log_add) - data_log_mean) / data_log_std
         # Evaluate the same mixture posterior in log space to avoid all-class underflow.
-        dist = torch.distributions.MultivariateNormal(theta_final, sigma_star)
         scores = dist.log_prob(chunk_norm[:, None, :]) + torch.log(w_star_final.clamp_min(torch.finfo(data.dtype).tiny))
         class_probs_chunk = torch.softmax(scores, dim=1)
         if not torch.isfinite(class_probs_chunk).all():
@@ -202,6 +227,12 @@ def decode(spots,barcodes_01,gene_list,code_list,num_iter=100,batch_size=100000,
     diagnostics = {"losses": losses, "n_training_spots": int(len(ind_keep)), "n_total_spots": int(N)}
     diagnostics['normalization'] = {'offset': log_add.detach().cpu().tolist(), 'mean': data_log_mean.detach().cpu().tolist(), 'std': data_log_std.detach().cpu().tolist()}
     diagnostics['model'] = {'weights': w_star_final.cpu().tolist(), 'theta': theta_final.cpu().tolist(), 'covariance': sigma_star.cpu().tolist()}
+    if log_brightness_variance:
+        diagnostics['model'].update(
+            log_brightness_variance=float(log_brightness_variance),
+            inference_covariances=inference_cov.detach().cpu().tolist(),
+            inference_codes=codes.detach().cpu().tolist(),
+        )
     diagnostics['acquired_rounds'] = 1
     diagnostics['phasing_correction'] = False
     diagnostics['error_correction_redundancy'] = False

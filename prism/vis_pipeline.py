@@ -55,7 +55,7 @@ def main(argv=None):
   ensure_readout_qc(rd,rid,intensity=intensity,positions=position,channels=channels,acquired_cycles=cycles)
   bits=np.asarray([[int(x) for x in word] for word in panel.bits],dtype=np.float32)[:,:,None]
   values=intensity[channels].to_numpy(dtype=np.float32)[:,:,None]
-  result,model=decode(values,bits,panel.gene.tolist(),panel.bits.tolist(),num_iter=int(cfg.get('num_iter',100)),batch_size=int(cfg.get('batch_size',100000)),inference_chunk_size=int(cfg.get('inference_chunk_size',100000)),background_prior=cfg.get('background_prior'))
+  result,model=decode(values,bits,panel.gene.tolist(),panel.bits.tolist(),num_iter=int(cfg.get('num_iter',100)),batch_size=int(cfg.get('batch_size',100000)),inference_chunk_size=int(cfg.get('inference_chunk_size',100000)),background_prior=cfg.get('background_prior'),log_brightness_variance=float(cfg.get('log_brightness_variance',0.)))
   result['index']=position['index'].to_numpy();result['Y']=position.Y.to_numpy();result['X']=position.X.to_numpy()
   if len(result)!=len(position) or not np.isfinite(result[['Probability','Probability_2','Entropy']].to_numpy()).all():raise ValueError('Invalid decoder handoff')
   result.to_csv(rd/'mapping_postcode.csv',index=False)
