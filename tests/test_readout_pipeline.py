@@ -24,6 +24,8 @@ def test_actual_tiled_readout_has_matched_ids_and_finite_intensity(tmp_path):
     positions,intensity=pipeline.main('FIXTURE',st,rd)
     assert np.array_equal(positions['index'],intensity['index'])
     assert np.isfinite(intensity.to_numpy()).all()
+    assert (tmp_path / "logs/readout/readout.log").is_file()
+    assert not (rd / "readout.log").exists()
     assert len(positions)==3
     assert set(map(tuple,positions[['Y','X']].to_numpy()))==set(centers)
 

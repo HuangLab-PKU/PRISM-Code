@@ -69,12 +69,12 @@ def decoded(request, tmp_path_factory):
 
 def test_full_shared_chain(decoded):
     config,rd,truth,omit46=decoded
-    calls=pd.read_csv(rd/'spots_called.csv').set_index('index')
+    calls=pd.read_csv(rd/'mapping_gmm.csv').rename(columns={'Gene': 'gene', 'Probability': 'confidence'}).set_index('index')
     expected=truth.set_index('index').probe_truth.reindex(calls.index)
     real=expected!=0
     assert (calls.loc[real,'probe']==expected[real]).mean() > .95
     assert (calls.probe==46).sum()>320
-    counts=pd.read_csv(rd/'gene_counts.csv',keep_default_na=False)
+    counts=pd.read_csv(rd.parent/'logs/prism46/gene_counts.csv',keep_default_na=False)
     assert len(counts)==46 and counts.n_spots.sum()==len(calls)
     assert counts.loc[counts.probe==46,'class'].item()==('unprinted' if omit46 else 'protein')
     result=json.loads((rd/'validation.json').read_text())
@@ -84,9 +84,9 @@ def test_full_shared_chain(decoded):
 
 def test_resume_is_exact_and_rejects_panel_drift(decoded):
     config,rd,truth,omit46=decoded
-    stamp=(rd/'intensity_preprocessed.csv').stat().st_mtime_ns
+    stamp=(rd.parent/'archive/prism46_intermediates/intensity_preprocessed.csv').stat().st_mtime_ns
     main(['--config',str(config),'--stage','preprocess','--resume'])
-    assert (rd/'intensity_preprocessed.csv').stat().st_mtime_ns==stamp
+    assert (rd.parent/'archive/prism46_intermediates/intensity_preprocessed.csv').stat().st_mtime_ns==stamp
     panel=config.parent/'panel.csv';raw=panel.read_bytes()
     try:
         panel.write_bytes(raw.replace(b'Target1,',b'Changed1,'))
@@ -117,7 +117,7 @@ def test_later_stage_rejects_prior_recipe_drift(decoded):
 def test_confidence_override_reaches_saved_parameters(decoded):
     config,rd,truth,omit46=decoded
     expected=yaml.safe_load(config.read_text())['calling'].get('confidence_threshold',.8)
-    assert yaml.safe_load((rd/'params.yaml').read_text())['confidence_threshold']==expected
+    assert yaml.safe_load((rd.parent/'archive/prism46_intermediates/params.yaml').read_text())['confidence_threshold']==expected
     assert yaml.safe_load((rd/'calling_summary.yaml').read_text())['confidence_threshold']==expected
 
 
@@ -139,7 +139,7 @@ def test_source_change_records_both_identities_before_refusing(tmp_path, monkeyp
     monkeypatch.setattr(driver,'validate_readout',lambda *a:None)
     with pytest.raises(RuntimeError,match='changed during stage'):
         driver.execute(ctx,'readout',audit=True)
-    records=rd/'pipeline_records'
+    records=rd.parent/'logs/prism46'
     attempt=json.loads(next(records.glob('readout.attempt_*.json')).read_text())
     refusal=json.loads(next(records.glob('readout.identity_mismatch_*.json')).read_text())
     assert attempt['identity_before']=={'generation':'before'}
@@ -176,7 +176,7 @@ def test_routine_readout_does_not_repeat_readback_or_end_identity(tmp_path,monke
     monkeypatch.setattr(reader,'main',write)
     monkeypatch.setattr(driver,'validate_readout',forbidden)
     driver.execute(ctx,'readout')
-    receipt=json.loads((rd/'pipeline_records/readout.json').read_text())
+    receipt=json.loads((rd.parent/'logs/prism46/readout.json').read_text())
     assert receipt['status']=='PASS' and receipt['validation_mode']=='routine'
 
 
@@ -186,3 +186,12 @@ def test_missing_qc_blocks_profile_acceptance(decoded):
  try:
   with pytest.raises(FileNotFoundError):main(['--config',str(config),'--stage','validate','--resume'])
  finally:figure.write_bytes(payload)
+
+
+def test_formal_readout_has_no_stage_cache(decoded):
+    _, rd, _, _ = decoded
+    assert not (rd / 'pipeline_records').exists()
+    assert not (rd / 'spots_called.csv').exists()
+    assert not (rd / 'gene_counts.csv').exists()
+    assert not (rd / 'intensity_labeled.csv').exists()
+    assert not (rd.parent / 'processing').exists()

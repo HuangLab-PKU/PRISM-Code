@@ -160,7 +160,7 @@ def _detect_spots_in_block(args):
 
 
 
-def main(run_id, stc_dir, read_dir):
+def _run_readout(run_id, stc_dir, read_dir):
     """
     Main function for readout pipeline.
 
@@ -180,12 +180,12 @@ def main(run_id, stc_dir, read_dir):
     logger.info(f"Detection method: {DETECTION_METHOD}")
     logger.info(f"Intensity method: tophat+3x3max (tophat_radius={TOPHAT_RADIUS}, search_radius={SEARCH_RADIUS})")
     logger.info("=" * 80)
-    
+
     # Stage 1: Spot Detection
     logger.info("=" * 80)
     logger.info("Stage 1: Spot Detection")
     logger.info("=" * 80)
-    
+
     # Spot detection: one memmap per channel (open once), read each block from it when needed, then discard block
     all_coordinates = []
     channel_coords_dict = {}
@@ -257,21 +257,21 @@ def main(run_id, stc_dir, read_dir):
                 channel_coords_dict[channel] = coords
                 all_coordinates.append(coords)
                 logger.info(f"  {channel}: {len(coords)} spots detected")
-    
+
     if not all_coordinates:
         raise ValueError("No spots detected in any channel")
-    
+
     # Combine coordinates from all channels
     logger.info("Combining coordinates from all channels...")
     all_coords = np.vstack(all_coordinates)
     logger.info(f"Total coordinates before deduplication: {len(all_coords)}")
-    
+
     # Remove exact duplicates (same pixel coordinates)
     coords_rounded = np.round(all_coords).astype(np.int32)
     _, unique_indices = np.unique(coords_rounded, axis=0, return_index=True)
     unique_coords = all_coords[unique_indices]
     logger.info(f"Total coordinates after removing exact duplicates: {len(unique_coords)}")
-    
+
     # Stage 2: Intensity Reading (block + parallel, same as detection)
     logger.info("=" * 80)
     logger.info("Stage 2: Intensity Reading (tophat+3x3max, by blocks)")
@@ -353,14 +353,14 @@ def main(run_id, stc_dir, read_dir):
             n_miss = intensity_df[channel].isna().sum()
             raise ValueError(f'Incomplete intensity readout for {channel}: {n_miss} missing values')
     logger.info(f"Intensity reading completed for {len(intensity_df)} spots")
-    
+
     # Stage 3: Final Deduplication
     logger.info("=" * 80)
     logger.info("Stage 3: Final Deduplication")
     logger.info("=" * 80)
-    
+
     n_before_dedup = len(intensity_df)
-    
+
     # Calculate score for deduplication (use max intensity across channels)
     intensity_cols = [c for c in CHANNELS if c in intensity_df.columns]
     if intensity_cols:
@@ -374,31 +374,31 @@ def main(run_id, stc_dir, read_dir):
         intensity_df = intensity_df.drop(columns=['max_intensity'])
     else:
         intensity_df = deduplicate_dataframe(intensity_df, coordinate_columns=['Y', 'X'], threshold=DEDUP_THRESHOLD)
-    
+
     logger.info(f"Deduplication: {n_before_dedup} -> {len(intensity_df)} spots")
-    
+
     # Stage 4: Create Output Files
     logger.info("=" * 80)
     logger.info("Stage 4: Creating Output Files")
     logger.info("=" * 80)
-    
+
     # Create index for matching position and intensity files
     intensity_df = intensity_df.reset_index(drop=True)
     intensity_df['index'] = intensity_df.index
-    
+
     # Position file: Y, X, index
     position_df = intensity_df[['index', 'Y', 'X']].copy()
     position_file = read_dir / 'position.csv'
     position_df.to_csv(position_file, index=False)
     logger.info(f"Saved position file: {position_file} ({len(position_df)} spots)")
-    
+
     # Intensity file: index, and all intensity columns (original channel names)
     intensity_cols = ['index'] + [c for c in intensity_df.columns if c not in ['Y', 'X', 'index']]
     intensity_output_df = intensity_df[intensity_cols].copy()
     intensity_file = read_dir / 'intensity.csv'
     intensity_output_df.to_csv(intensity_file, index=False)
     logger.info(f"Saved intensity file: {intensity_file} ({len(intensity_output_df)} spots)")
-    
+
     # Save parameters
     params = {
         'RUN_ID': run_id,
@@ -413,7 +413,7 @@ def main(run_id, stc_dir, read_dir):
     with open(params_file, 'w') as f:
         yaml.dump(params, f, default_flow_style=False)
     logger.info(f"Saved parameters: {params_file}")
-    
+
     logger.info("=" * 80)
     from prism.qc import generate_readout_qc
     from prism.qc.reports import image_metadata
@@ -432,10 +432,24 @@ def main(run_id, stc_dir, read_dir):
     logger.info(f"  - {position_file}")
     logger.info(f"  - {intensity_file}")
     logger.info("=" * 80)
-    
+
     return position_df, intensity_output_df
 
 
+
+
+def main(run_id, stc_dir, read_dir):
+    read_dir = Path(read_dir)
+    log_dir = read_dir.parent / 'logs' / 'readout'
+    log_dir.mkdir(parents=True, exist_ok=True)
+    handler = logging.FileHandler(log_dir / 'readout.log', encoding='utf8')
+    handler.setFormatter(logging.Formatter(_LOG_FMT))
+    logging.getLogger().addHandler(handler)
+    try:
+        return _run_readout(run_id, stc_dir, read_dir)
+    finally:
+        logging.getLogger().removeHandler(handler)
+        handler.close()
 
 
 def cli(argv=None):
@@ -449,14 +463,7 @@ def cli(argv=None):
     root = BASE_DIR / f'{args.run_id}_processed'
     read_dir = root / 'readout'
     read_dir.mkdir(parents=True, exist_ok=True)
-    handler = logging.FileHandler(read_dir / 'readout.log', encoding='utf8')
-    handler.setFormatter(logging.Formatter(_LOG_FMT))
-    logging.getLogger().addHandler(handler)
-    try:
-        main(args.run_id, root / 'stitched', read_dir)
-    finally:
-        logging.getLogger().removeHandler(handler)
-        handler.close()
+    main(args.run_id, root / 'stitched', read_dir)
     return 0
 
 

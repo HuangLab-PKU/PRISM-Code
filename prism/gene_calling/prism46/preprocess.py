@@ -18,6 +18,9 @@ def run(context):
     """Apply the versioned correction, threshold and three-layer recipe."""
     RUN_ID = context.run_id
     read_dir = context.read_dir
+    work_dir = context.work_dir
+    work_dir.mkdir(parents=True, exist_ok=True)
+    context.log_dir.mkdir(parents=True, exist_ok=True)
     figure_dir = read_dir / 'figures'
     figure_dir.mkdir(parents=True, exist_ok=True)
     plt.rcParams.update({'font.family': 'Arial', 'text.usetex': False, 'figure.dpi': 300})
@@ -325,9 +328,9 @@ def run(context):
     plt.savefig(figure_dir / 'ColorSpace_3view.png', dpi=300, bbox_inches='tight')
     plt.close()
     params = {'PRISM_PANEL': PRISM_PANEL, 'GENOTYPE': GENOTYPE, 'GLAYER': GLAYER, 'COLOR_GRADE': COLOR_GRADE, 'Q_CHNS': Q_CHNS, 'Q_NUM': Q_NUM, 'XRANGE': XRANGE, 'YRANGE': YRANGE, 's': s, 'alpha': alpha, 'percentile_thre': percentile_thre, 'bins': bins, 'CD_1_proj': CD_1_proj.tolist(), 'CD_2_proj': CD_2_proj.tolist(), 'centroid_init_dict': centroid_init_dict, 'colormap': colormap, 'PANEL': PANEL, 'CLASSES': CLASSES, 'LABEL_TO_PROBE': LABEL_TO_PROBE, 'GENES': GENES, 'PURE_G_PROBE': PURE_G_PROBE, 'PURE_G_RATIO': float(PURE_G_RATIO), 'PURE_G_RATIO_CEILING': _ratio_ceiling, 'PURE_G_QUANTILE': PURE_G_QUANTILE, 'PURE_G_MARGIN': PURE_G_MARGIN, 'SG': float(SG), 'SG_origin': _sg_origin, 'SUM_THRESHOLD': float(SUM_THRESHOLD), 'G_THRESHOLD': float(G_THRESHOLD), 'CT': CT, 'FG': FG, 'FB': FB, 'ARCSINH_COFACTOR': ARCSINH_COFACTOR, 'colour_maxima': {'Ye': [float(v) for v in Y_maxima], 'B': [float(v) for v in B_maxima], 'R': [float(v) for v in R_maxima]}, 'G_layer_cuts': [float(m) for m in minima[1:-1]], 'G_kde_valleys': [float(v) for v in G_minima], 'G_modes': [float(v) for v in _g_diag['peaks']], 'channel_medians': _med, 'G_over_rawsum_median': _g_over_rawsum, 'n_detected': int(_n_all + len(intensity_G)), 'n_pure_g': int(len(intensity_G))}
-    with open(read_dir / 'params.yaml', 'w') as f:
+    with open(work_dir / 'params.yaml', 'w') as f:
         params['confidence_threshold'] = context.options.get('confidence_threshold', 0.8)
         yaml.safe_dump(plain(params), f, sort_keys=False)
-    intensity.to_csv(read_dir / 'intensity_preprocessed.csv')
-    intensity_G.to_csv(read_dir / 'intensity_G.csv')
+    intensity.to_csv(work_dir / 'intensity_preprocessed.csv')
+    intensity_G.to_csv(work_dir / 'intensity_G.csv')
     print(f'  wrote intensity_preprocessed.csv ({len(intensity):,} spots)', flush=True)

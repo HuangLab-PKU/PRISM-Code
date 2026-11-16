@@ -24,7 +24,8 @@ def main(argv=None):
         channels=params['CHANNELS']
         counts=None
         exact=None
-        log=rd/'readout.log'
+        log=run/'logs/readout/readout.log'
+        if not log.exists():log=rd/'readout.log'
         if log.is_file():
             text=log.read_text(encoding='utf-8-sig')
             matches={ch:re.search(r'  '+re.escape(ch)+r': (\d+) spots detected',
@@ -45,7 +46,7 @@ def main(argv=None):
                                        acquired_cycles=cycles)
         if report['input_rows']!=params['n_spots']:raise ValueError('QC/readout metadata count mismatch')
     if calling:
-        if (rd/'vis_binary.lock').exists():raise ValueError('Active decode source; wait for actual producer exit before QC backfill')
+        if (rd/'vis_binary.lock').exists() or (run/'logs/vis/vis_binary.lock').exists():raise ValueError('Active decode source; wait for actual producer exit before QC backfill')
         candidates=[rd/'mapping_postcode.csv',rd/'mapping_gmm.csv',rd/'spots_called.csv',rd/'predictions.csv']
         source=next((f for f in candidates if f.is_file()),None)
         if source is None:raise FileNotFoundError('No accepted calling table to backfill')
@@ -57,6 +58,8 @@ def main(argv=None):
         if model.exists():diagnostics=json.loads(model.read_text())
         counts=rd/'gene_counts.csv'
         if not counts.exists():counts=run/'logs/prism31/gene_counts.csv'
+        if not counts.exists():counts=run/'logs/prism46/gene_counts.csv'
+        if not counts.exists():counts=run/'logs/vis/gene_counts.csv'
         if counts.exists():
             frame=pd.read_csv(counts,keep_default_na=False)
             col='gene' if 'gene' in frame else 'Gene' if 'Gene' in frame else None

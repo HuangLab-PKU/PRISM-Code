@@ -30,6 +30,18 @@ class RunContext:
     options: dict
     readout_config_dir: Path
 
+    @property
+    def log_dir(self):
+        return self.run_dir / "logs" / "prism46"
+
+    @property
+    def work_dir(self):
+        current = self.run_dir / "archive" / "prism46_intermediates"
+        if not current.exists() and (self.read_dir / "intensity_preprocessed.csv").is_file():
+            return self.read_dir  # Continue pre-layout checkpoints without moving their inputs.
+        return current
+
+
 
 def load_context(config_path):
     path = Path(config_path).resolve()

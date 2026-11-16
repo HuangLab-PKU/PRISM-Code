@@ -8,22 +8,33 @@ from .vis_binary import decode
 
 def save(p,v):
  t=p.with_suffix(p.suffix+'.tmp');t.write_text(json.dumps(v,indent=2,default=str),encoding='utf8');t.replace(p)
+def record_path(rd, name, *, for_write=False):
+ current=rd.parent/'logs/vis'/name
+ if for_write:
+  current.parent.mkdir(parents=True,exist_ok=True)
+  return current
+ legacy=rd/name
+ return legacy if not current.exists() and legacy.is_file() else current
+
+def numerical_product(rd,name):
+ return record_path(rd,name) if name=='gene_counts.csv' else rd/name
+
 def qc_from_numerical_checkpoint(rd,cfg,rid,panel,config_path):
  from prism.qc import generate_gene_calling_qc,require_qc_artifacts
  from prism.qc.reports import ensure_readout_qc,image_metadata
- if (rd/'vis_binary.lock').exists():raise ValueError('Active decode lock; wait for the producer before QC-only recovery')
+ if (rd/'vis_binary.lock').exists() or record_path(rd,'vis_binary.lock').exists():raise ValueError('Active decode lock; wait for the producer before QC-only recovery')
  checkpoint=rd/'binary_numerical_receipt.json'
  if not checkpoint.exists():checkpoint=rd/'binary_validation.json'
  receipt=json.loads(checkpoint.read_text())
  if receipt['run_id']!=rid or receipt['config_sha256']!=hashlib.sha256(config_path.read_bytes()).hexdigest() or receipt['panel_sha256']!=hashlib.sha256(Path(cfg['panel']).read_bytes()).hexdigest():raise ValueError('Existing numerical recipe changed; QC-only cannot reassign genes')
  for name,identity in receipt.get('numerical_products',{}).items():
-  st=(rd/name).stat()
+  st=numerical_product(rd,name).stat()
   if [st.st_size,st.st_mtime_ns]!=identity:raise ValueError('Existing numerical product changed: '+name)
  ensure_readout_qc(rd,rid,channels=cfg['channels'],acquired_cycles=cfg['cycles'])
  shape,pixel=image_metadata(rd.parent/'stitched')
  model=json.loads((rd/'binary_model.json').read_text())
  q=generate_gene_calling_qc(rd/'mapping_postcode.csv',rd,rid,diagnostics=model,features=panel.gene.tolist(),detected_spots=receipt['n_detected'],img_shape=shape,pixel_size_um=pixel)
- observed=q['label_counts'];counts=pd.read_csv(rd/'gene_counts.csv',keep_default_na=False)
+ observed=q['label_counts'];counts=pd.read_csv(record_path(rd,'gene_counts.csv'),keep_default_na=False)
  if q['input_rows']!=receipt['n_detected'] or observed.get('Background',0)!=receipt['n_background'] or sum(observed.get(g,0) for g in panel.gene)!=receipt['n_called']:raise ValueError('QC-only calling counts changed')
  if len(counts)!=len(panel) or counts.set_index('gene').n_spots.to_dict()!={g:observed.get(g,0) for g in panel.gene}:raise ValueError('QC-only per-gene counts changed')
  require_qc_artifacts(rd,'readout',expected_rows=receipt['n_detected']);require_qc_artifacts(rd,'gene_calling',expected_rows=q['input_rows'])
@@ -44,8 +55,9 @@ def main(argv=None):
  rd=Path(cfg['base_dir'])/(rid+'_processed')/'readout';rd.mkdir(parents=True,exist_ok=True)
  if args.qc_only:return qc_from_numerical_checkpoint(rd,cfg,rid,panel,args.config)
  outputs=['mapping_postcode.csv','gene_counts.csv','binary_model.json','binary_validation.json']
- if any((rd/n).exists() for n in outputs):raise ValueError('Existing decode outputs require inspected checkpoint recovery')
- lock=rd/'vis_binary.lock'
+ if any(numerical_product(rd,n).exists() for n in outputs):raise ValueError('Existing decode outputs require inspected checkpoint recovery')
+ if (rd/'vis_binary.lock').exists():raise ValueError('Legacy decode lock exists; verify its owner before recovery')
+ lock=record_path(rd,'vis_binary.lock',for_write=True)
  with lock.open('x',encoding='utf8') as f:json.dump({'pid':os.getpid(),'run_id':rid},f)
  try:
   position=pd.read_csv(rd/'position.csv');intensity=pd.read_csv(rd/'intensity.csv')
@@ -59,11 +71,11 @@ def main(argv=None):
   result['index']=position['index'].to_numpy();result['Y']=position.Y.to_numpy();result['X']=position.X.to_numpy()
   if len(result)!=len(position) or not np.isfinite(result[['Probability','Probability_2','Entropy']].to_numpy()).all():raise ValueError('Invalid decoder handoff')
   result.to_csv(rd/'mapping_postcode.csv',index=False)
-  counts=result.Gene.value_counts();summary=panel.copy();summary['n_spots']=[int(counts.get(g,0)) for g in panel.gene];summary.to_csv(rd/'gene_counts.csv',index=False)
+  counts=result.Gene.value_counts();summary=panel.copy();summary['n_spots']=[int(counts.get(g,0)) for g in panel.gene];summary.to_csv(record_path(rd,'gene_counts.csv',for_write=True),index=False)
   save(rd/'binary_model.json',model)
   receipt={'status':'ROUTINE_OUTPUT_CHECKS_PASSED','run_id':rid,'profile':cfg['profile'],'cycle':cycles[0],'informative_bits':5,'channels':channels,'panel_size':31,'n_detected':len(result),'n_background':int(counts.get('Background',0)),'n_called':int(summary.n_spots.sum()),'minimum_hamming':1,'error_correction':False,'posterior_is_calibrated_error_rate':False,'phasing_correction':False,'config_sha256':hashlib.sha256(args.config.read_bytes()).hexdigest(),'panel_sha256':hashlib.sha256(Path(cfg['panel']).read_bytes()).hexdigest(),'at':time.time()}
   if receipt['n_background']+receipt['n_called']!=len(result):raise ValueError('Count conservation failed')
-  receipt['numerical_products']={name:[(rd/name).stat().st_size,(rd/name).stat().st_mtime_ns] for name in ['mapping_postcode.csv','gene_counts.csv','binary_model.json']}
+  receipt['numerical_products']={name:[numerical_product(rd,name).stat().st_size,numerical_product(rd,name).stat().st_mtime_ns] for name in ['mapping_postcode.csv','gene_counts.csv','binary_model.json']}
   save(rd/'binary_numerical_receipt.json',{**receipt,'status':'NUMERICAL_OUTPUTS_CHECKED_QC_PENDING'})
   from prism.qc import generate_gene_calling_qc, require_qc_artifacts
   from prism.qc.reports import image_metadata
@@ -76,7 +88,7 @@ def main(argv=None):
   receipt['qc_required']=True
   save(rd/'binary_validation.json',receipt);print(json.dumps(receipt),flush=True)
  except BaseException:
-  save(rd/'vis_binary_failure.json',{'error':traceback.format_exc(),'at':time.time()});raise
+  save(record_path(rd,'vis_binary_failure.json',for_write=True),{'error':traceback.format_exc(),'at':time.time()});raise
  finally:
   if json.loads(lock.read_text())['pid']!=os.getpid():raise RuntimeError('Binary lock ownership changed')
   lock.unlink()

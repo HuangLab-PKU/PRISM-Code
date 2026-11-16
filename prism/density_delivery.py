@@ -19,7 +19,9 @@ def publish_density(readout, mapping, genes, run_id, *, stitched=None):
     from tifffile import imwrite
 
     genes = sorted(set(genes))
-    with TemporaryDirectory(prefix=".density-", dir=readout.parent) as temporary:
+    scratch = readout.parent / "archive" / "density_staging"
+    scratch.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix="density_", dir=scratch) as temporary:
         stage = Path(temporary)
         # Project only qualifying rows for the in-memory spatial-cells reader.
         with (stage / "position.csv").open("w", newline="") as pos, (
